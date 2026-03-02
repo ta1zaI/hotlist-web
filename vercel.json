@@ -1,8 +1,8 @@
 {
   "rewrites": [
-    { "source": "/api/weibo", "destination": "https://rsshub.app/weibo/search/hot" },
-    { "source": "/api/bili", "destination": "https://rsshub.app/bilibili/hot-search" },
-    { "source": "/api/gcores", "destination": "https://rsshub.app/gcores/category/news" },
-    { "source": "/api/gamersky", "destination": "https://rsshub.app/gamersky/news" }
+    { "source": "/api/weibo", "destination": "https://rsshub.rssforever.com/weibo/search/hot" },
+    { "source": "/api/bili", "destination": "https://rss-hub-livid-zeta.vercel.app/bilibili/hot-search" },
+    { "source": "/api/gcores", "destination": "https://rss-hub-livid-zeta.vercel.app/gcores/category/news" },
+    { "source": "/api/gamersky", "destination": "https://rss-hub-livid-zeta.vercel.app/gamersky/news" }
   ]
 }
