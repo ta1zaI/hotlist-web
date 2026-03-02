@@ -8,72 +8,66 @@
     <style>
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        @keyframes scanLine { 0% { transform: translateY(-100%); } 100% { transform: translateY(1000%); } }
-        .scanline { width: 100%; height: 2px; background: rgba(34, 197, 94, 0.1); position: absolute; animation: scanLine 8s linear infinite; pointer-events: none; }
+        @keyframes scan { 0% { border-color: rgba(16, 185, 129, 0.1); } 50% { border-color: rgba(16, 185, 129, 0.6); } 100% { border-color: rgba(16, 185, 129, 0.1); } }
+        .border-pulse { animation: scan 2s infinite; }
     </style>
 </head>
-<body class="bg-slate-950 p-4 md:p-8 font-mono text-emerald-500 overflow-x-hidden">
+<body class="bg-slate-950 p-4 md:p-8 font-mono text-slate-300">
 
-    <div class="scanline"></div>
-
-    <div class="max-w-[1600px] mx-auto relative z-10">
-        <header class="mb-12 border-b border-emerald-900/50 pb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-                <h1 class="text-3xl font-black tracking-[0.2em] uppercase text-white">Global 5 Intelligence</h1>
-                <p class="text-[10px] text-emerald-700 mt-2 italic tracking-widest">STATUS: ENCRYPTED // NODE: BILLOWING-SALAD-1C9B</p>
-            </div>
-            <div class="flex gap-4">
-                <button onclick="location.reload()" class="px-4 py-1 border border-emerald-800 text-[10px] hover:bg-emerald-900/30 transition-all uppercase">Re-Sync All</button>
-            </div>
+    <div class="max-w-[1600px] mx-auto">
+        <header class="mb-10 border-b border-slate-800 pb-6">
+            <h1 class="text-3xl font-black italic tracking-tighter text-white uppercase italic">Global 5 Intelligence</h1>
+            <p class="text-[10px] text-emerald-500 mt-1 uppercase tracking-widest font-bold">Secure Feed // Node: Billowing-Salad-1C9B</p>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
-        // 【已保留】你的专属成功代理
         const PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
-        // 备用节点资源池：一个挂了，自动跳下一个
-        const RSS_MIRRORS = [
-            'https://rsshub.rssforever.com',
+        // 备用线路池：如果线路1报 530/403，代码会自动切到线路2
+        const MIRRORS = [
             'https://hub.slarker.me',
+            'https://rsshub.rssforever.com',
             'https://rss.shab.fun',
-            'https://rsshub.anyant.com',
-            'https://rsshub.app'
+            'https://rsshub.anyant.com'
         ];
 
         const platforms = [
-            { id: 'reddit', name: 'Reddit /r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', theme: 'border-orange-500' },
-            { id: 'imdb', name: 'IMDb Trending', route: '/imdb/trending/movie', theme: 'border-yellow-500' },
-            { id: 'twitter', name: 'X / Twitter', route: '/twitter/trends/1', theme: 'border-slate-400' },
-            { id: 'tiktok', name: 'TikTok Hot', route: '/tiktok/trending/worldwide', theme: 'border-pink-500' },
-            { id: 'youtube', name: 'YouTube Trend', route: '/youtube/trending/en', theme: 'border-red-600' }
+            { id: 'reddit', name: 'Reddit /r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', color: 'border-orange-500' },
+            { id: 'youtube', name: 'YouTube Trending', route: '/youtube/trending/en', color: 'border-red-600' },
+            { id: 'imdb', name: 'IMDb Movies', route: '/imdb/trending/movie', color: 'border-yellow-500' },
+            { id: 'twitter', name: 'X / Twitter', route: '/twitter/trends/1', color: 'border-slate-100' },
+            { id: 'tiktok', name: 'TikTok Trend', route: '/tiktok/trending/worldwide', color: 'border-pink-500' }
         ];
 
-        // 核心：智能轮询抓取
-        async function fetchWithRetry(platform) {
-            // Reddit 走官方 JSON 路径
-            if (platform.type === 'json') {
+        async function fetchWithRetry(platform, mirrorIndex = 0) {
+            // Reddit 走官方 JSON 通道 (通常最稳)
+            if (platform.url) {
                 const r = await fetch(PROXY + encodeURIComponent(platform.url));
                 if (!r.ok) throw new Error('OFFLINE');
                 return await r.json();
             }
 
-            // 其它平台依次尝试 5 个不同的公共节点
-            for (let mirror of RSS_MIRRORS) {
-                try {
-                    const fullUrl = mirror + platform.route;
-                    const r = await fetch(PROXY + encodeURIComponent(fullUrl));
-                    if (r.ok) return await r.text();
-                } catch (e) { continue; }
+            // 其他 RSS 平台尝试备用线路
+            try {
+                const target = MIRRORS[mirrorIndex] + platform.route;
+                const r = await fetch(PROXY + encodeURIComponent(target));
+                if (!r.ok) throw new Error('BLOCK');
+                return await r.text();
+            } catch (e) {
+                if (mirrorIndex < MIRRORS.length - 1) {
+                    console.log(`Switching mirror for ${platform.name}...`);
+                    return await fetchWithRetry(platform, mirrorIndex + 1);
+                }
+                throw e;
             }
-            throw new Error('ALL_NODES_FAILED');
         }
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            container.innerHTML += `<div id="card-${index}" class="h-[550px] bg-slate-900/30 border border-emerald-950 p-6 flex items-center justify-center"><span class="animate-pulse text-[10px] tracking-widest text-emerald-800">CONNECTING_${platform.name}...</span></div>`;
+            container.innerHTML += `<div id="card-${index}" class="h-[550px] bg-slate-900/50 border border-slate-800 rounded-2xl flex items-center justify-center border-pulse"><span class="text-[10px] animate-pulse">CONNECTING_${platform.name}...</span></div>`;
 
             try {
                 const data = await fetchWithRetry(platform);
@@ -84,32 +78,30 @@
                 } else {
                     const doc = new DOMParser().parseFromString(data, "text/xml");
                     const nodes = doc.querySelectorAll("item");
-                    if (nodes.length === 0) throw new Error('EMPTY');
                     nodes.forEach((n, i) => { if(i < 15) items.push({ title: n.querySelector("title")?.textContent, link: n.querySelector("link")?.textContent }); });
                 }
 
                 let html = `
-                    <div class="h-[550px] bg-slate-900/80 border-t-2 ${platform.theme} flex flex-col overflow-hidden shadow-2xl group transition-all hover:bg-slate-900">
-                        <div class="p-4 bg-slate-800/40 flex justify-between items-center border-b border-slate-800/50">
-                            <span class="font-bold text-[10px] tracking-tighter uppercase text-white">${platform.name}</span>
-                            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+                    <div class="h-[550px] bg-slate-900 border-t-4 ${platform.color} rounded-2xl flex flex-col overflow-hidden shadow-2xl hover:scale-[1.01] transition-all">
+                        <div class="p-4 bg-slate-800/40 flex justify-between items-center border-b border-slate-800">
+                            <span class="font-black text-xs uppercase text-white">${platform.name}</span>
+                            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
                         </div>
-                        <ul class="p-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar text-[11px] leading-relaxed">
+                        <ul class="p-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
                 `;
                 items.forEach(item => {
-                    html += `<li class="border-b border-emerald-950/30 pb-3 last:border-0 hover:bg-emerald-900/10 transition-all"><a href="${item.link}" target="_blank" class="hover:text-white block"> > ${item.title}</a></li>`;
+                    html += `<li class="border-b border-slate-800/50 pb-3 last:border-0 hover:pl-1 transition-all"><a href="${item.link}" target="_blank" class="text-[11px] leading-relaxed hover:text-emerald-400 block tracking-tight"> ${item.title}</a></li>`;
                 });
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
-                document.getElementById(`card-${index}`).innerHTML = `<div class="text-center p-6"><span class="text-red-500 font-bold text-[10px] uppercase">[DATA_REJECTED]</span><p class="text-[9px] text-slate-600 mt-2">Check Local VPN Connection</p><button onclick="location.reload()" class="mt-4 text-[9px] text-emerald-800 hover:text-emerald-500 underline">RE-CONNECT</button></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="text-center p-6"><span class="text-red-500 font-bold text-xs uppercase">[ACCESS_DENIED]</span><p class="text-[9px] text-slate-600 mt-2">All nodes blocked.</p></div>`;
             }
         }
 
         async function init() {
-            // 采用流水线顺序加载，确保存活率
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
-                await new Promise(r => setTimeout(r, 400)); 
+                await new Promise(r => setTimeout(r, 400)); // 延迟抓取，避开并发限制
             }
         }
         init();
