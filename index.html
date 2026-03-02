@@ -3,123 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>硬核玩家全网矩阵 - 最终稳定版</title>
+    <title>硬核玩家全网矩阵 - 终极防御版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
     </style>
 </head>
-<body class="bg-gray-100 p-4 md:p-6 font-sans">
+<body class="bg-gray-100 p-4 md:p-6 font-sans text-gray-800">
 
     <div class="max-w-[1600px] mx-auto">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8 tracking-wide">
-            🎮 硬核玩家全网矩阵
-        </h1>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="board-container">
-            </div>
+        <h1 class="text-3xl font-extrabold text-center mb-8 tracking-tighter">🎮 全网硬核资讯矩阵</h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="board-container"></div>
     </div>
 
     <script>
-        // 【已保留】你的专属成功金钥匙
-        const MY_CF_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
+        // 【保持不变】你的专属代理
+        const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
-        // 【稳健资源池】这些是目前全球最稳定的 5 个节点
-        const RSS_NODES = [
+        // 备用节点池：如果一个挂了，自动跳下一个
+        const NODES = [
             'https://rsshub.app',
             'https://rsshub.rssforever.com',
             'https://hub.slarker.me',
-            'https://rss.shab.fun',
-            'https://rsshub.anyant.com'
+            'https://rss.shab.fun'
         ];
 
         const platforms = [
-            // 已确认成功的路径
-            { name: 'Reddit (Gaming)', type: 'json', url: 'https://www.reddit.com/r/gaming/hot.json', color: 'bg-orange-50 text-orange-600 border-orange-200' },
-            { name: '游民星空', type: 'xml', route: '/gamersky/news', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-            
-            // 待攻克的阵地
-            { name: 'B站热门', type: 'xml', route: '/bilibili/v/popular/all', color: 'bg-blue-50 text-blue-600 border-blue-200' },
-            { name: '微博热搜', type: 'xml', route: '/weibo/search/hot', color: 'bg-red-50 text-red-600 border-red-200' },
-            { name: '3DM 游戏网', type: 'xml', route: '/3dm/news', color: 'bg-green-50 text-green-600 border-green-200' },
-            { name: '机核网 Gcores', type: 'xml', route: '/gcores/category/news', color: 'bg-zinc-900 text-white border-zinc-700' },
-            { name: 'TapTap 热门', type: 'xml', route: '/taptap/topic/hot', color: 'bg-teal-50 text-teal-600 border-teal-200' },
-            { name: '游研社', type: 'xml', route: '/yystv/docs', color: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
-            { name: 'YouTube 热门', type: 'xml', route: '/youtube/trending', color: 'bg-red-50 text-red-700 border-red-200' },
-            { name: '抖音热点', type: 'xml', route: '/douyin/hot', color: 'bg-zinc-800 text-white border-zinc-700' },
-            { name: 'Twitter 趋势', type: 'xml', route: '/twitter/trends/23424977', color: 'bg-sky-50 text-sky-500 border-sky-200' },
-            { name: '手游那点事', type: 'xml', route: '/zhihu/people/shou-you-na-dian-shi/activities', color: 'bg-blue-50 text-blue-800 border-blue-200' }
+            { id: 'reddit', name: 'Reddit (Gaming)', type: 'json', url: 'https://www.reddit.com/r/gaming/hot.json', color: 'bg-orange-600' },
+            { id: 'gamersky', name: '游民星空', route: '/gamersky/news', color: 'bg-yellow-600' },
+            { id: 'bili', name: 'B站热门', route: '/bilibili/v/popular/all', color: 'bg-blue-500' },
+            { id: 'weibo', name: '微博热搜', route: '/weibo/search/hot', color: 'bg-red-500' },
+            { id: '3dm', name: '3DM游戏网', route: '/3dm/news', color: 'bg-green-600' },
+            { id: 'gcores', name: '机核网', route: '/gcores/category/news', color: 'bg-zinc-800' },
+            { id: 'taptap', name: 'TapTap热门', route: '/taptap/topic/hot', color: 'bg-teal-500' },
+            { id: 'yystv', name: '游研社', route: '/yystv/docs', color: 'bg-indigo-600' },
+            { id: 'youtube', name: 'YouTube热门', route: '/youtube/trending', color: 'bg-red-600' },
+            { id: 'douyin', name: '抖音热点', route: '/douyin/hot', color: 'bg-black' },
+            { id: 'twitter', name: 'Twitter趋势', route: '/twitter/trends/23424977', color: 'bg-sky-500' },
+            { id: 'shouyou', name: '手游那点事', route: '/zhihu/people/shou-you-na-dian-shi/activities', color: 'bg-blue-700' }
         ];
 
-        // 核心重试函数：节点 A 不行自动切节点 B
-        async function fetchWithRetry(platform) {
-            // 如果是 Reddit 这种带全量 URL 的，直接抓取
-            if (platform.url) {
-                return await fetch(MY_CF_PROXY + encodeURIComponent(platform.url)).then(r => platform.type === 'json' ? r.json() : r.text());
-            }
+        async function loadCard(platform, index, nodeIndex = 0) {
+            const card = document.getElementById(`card-${index}`);
+            card.innerHTML = `<div class="flex items-center justify-center h-full"><span class="text-sm animate-pulse text-gray-400">正在通过线路 ${nodeIndex + 1} 抓取...</span></div>`;
 
-            // 否则，依次尝试 5 个节点
-            for (let node of RSS_NODES) {
-                try {
-                    const fullUrl = node + platform.route;
-                    const response = await fetch(MY_CF_PROXY + encodeURIComponent(fullUrl));
-                    if (response.ok) return await response.text();
-                } catch (e) {
-                    continue; // 失败了就换下一个
-                }
-            }
-            throw new Error('全线节点繁忙');
-        }
-
-        async function renderCard(platform, index) {
             try {
-                const data = await fetchWithRetry(platform);
+                // 自动选择节点
+                const baseUrl = platform.url || (NODES[nodeIndex] + platform.route);
+                const fetchUrl = MY_PROXY + encodeURIComponent(baseUrl);
+                
+                const response = await fetch(fetchUrl);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
                 let items = [];
-
                 if (platform.type === 'json') {
-                    items = data.data.children.map(child => ({ title: child.data.title, link: `https://www.reddit.com${child.data.permalink}` }));
+                    const data = await response.json();
+                    items = data.data.children.map(c => ({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
                 } else {
-                    const parser = new DOMParser();
-                    const xmlDoc = parser.parseFromString(data, "text/xml");
-                    const nodes = xmlDoc.querySelectorAll("item");
-                    if (nodes.length === 0) throw new Error('空内容');
-                    for (let i = 0; i < Math.min(nodes.length, 12); i++) {
-                        items.push({ title: nodes[i].querySelector("title")?.textContent || '无标题', link: nodes[i].querySelector("link")?.textContent || '#' });
-                    }
+                    const text = await response.text();
+                    const doc = new DOMParser().parseFromString(text, "text/xml");
+                    const nodes = doc.querySelectorAll("item");
+                    if (nodes.length === 0) throw new Error('解析为空');
+                    nodes.forEach((n, i) => { if(i < 12) items.push({ title: n.querySelector("title")?.textContent, link: n.querySelector("link")?.textContent }); });
                 }
 
                 let html = `
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[400px] animate-fade-in">
-                        <h2 class="text-md font-bold p-3 border-b ${platform.color}">${platform.name}</h2>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full animate-fade-in">
+                        <div class="p-3 ${platform.color} text-white font-bold flex justify-between items-center rounded-t-xl">
+                            <span>${platform.name}</span>
+                            <button onclick="retryCard(${index})" class="text-xs bg-white/20 hover:bg-white/40 px-2 py-1 rounded">刷新</button>
+                        </div>
                         <ul class="p-3 space-y-2 overflow-y-auto flex-1">
                 `;
-                for (let item of items) {
-                    html += `<li class="flex items-start border-b border-gray-50 pb-2 last:border-0"><a href="${item.link}" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline transition-colors line-clamp-2 text-xs leading-tight flex-1">${item.title}</a></li>`;
-                }
+                items.forEach(item => {
+                    html += `<li class="border-b border-gray-50 pb-2 last:border-0"><a href="${item.link}" target="_blank" class="text-xs text-gray-700 hover:text-blue-600 line-clamp-2">${item.title}</a></li>`;
+                });
                 html += `</ul></div>`;
-                document.getElementById(`card-${index}`).outerHTML = html;
-            } catch (error) {
-                document.getElementById(`card-${index}`).innerHTML = `<span class="text-red-400 font-bold text-center mb-2 text-sm">🚫 ${platform.name}</span><span class="text-gray-400 text-xs text-center">节点维护中，请手动刷新</span>`;
+                card.innerHTML = html;
+
+            } catch (err) {
+                // 如果当前节点失败，且还有备用节点，自动切换下一个
+                if (!platform.url && nodeIndex < NODES.length - 1) {
+                    loadCard(platform, index, nodeIndex + 1);
+                } else {
+                    card.innerHTML = `
+                        <div class="bg-white rounded-xl border border-red-100 h-full flex flex-col items-center justify-center p-4">
+                            <span class="text-red-400 font-bold mb-2">🚫 ${platform.name}</span>
+                            <p class="text-[10px] text-gray-400 text-center mb-3">所有线路均被封锁或超时</p>
+                            <button onclick="retryCard(${index})" class="text-xs text-blue-500 border border-blue-200 px-4 py-1 rounded-full hover:bg-blue-50">尝试重连</button>
+                        </div>`;
+                }
             }
         }
 
-        async function init() {
-            const container = document.getElementById('board-container');
-            // 预生成骨架屏
-            platforms.forEach((p, i) => {
-                container.innerHTML += `<div id="card-${i}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[400px] flex flex-col items-center justify-center"><span class="text-blue-400 font-bold mb-2 animate-pulse text-sm">🌐 通道连接：${p.name}...</span></div>`;
-            });
-            // 顺序加载，降低代理并发压力
-            for (let i = 0; i < platforms.length; i++) {
-                await renderCard(platforms[i], i);
-                await new Promise(r => setTimeout(r, 150)); 
-            }
+        function retryCard(index) {
+            loadCard(platforms[index], index, 0);
         }
 
-        init();
+        // 初始化
+        const container = document.getElementById('board-container');
+        platforms.forEach((p, i) => {
+            container.innerHTML += `<div id="card-${i}" class="h-[400px]"></div>`;
+            setTimeout(() => loadCard(p, i), i * 300); // 错开加载，防止并发太高
+        });
     </script>
 </body>
 </html>
