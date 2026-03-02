@@ -18,26 +18,22 @@
         </h1>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="board-container">
-            <div id="loading" class="col-span-full text-center text-gray-500 font-bold text-xl py-10">
-                🚀 Vercel 后台抓取引擎启动中，正在连接全球 12 大节点...
             </div>
-        </div>
     </div>
 
     <script>
-        // 全部走自己的 Vercel 代理，告别跨域和中间商拦截！
         const platforms = [
             // 大众平台
             { name: 'B站热门', type: 'xml', url: '/api/bili', color: 'bg-blue-50 text-blue-600 border-blue-200' },
             { name: '微博热搜', type: 'xml', url: '/api/weibo', color: 'bg-red-50 text-red-600 border-red-200' },
             { name: '抖音热点', type: 'xml', url: '/api/douyin', color: 'bg-gray-800 text-white border-gray-700' },
             
-            // 海外硬核
-            { name: 'Reddit (Gaming)', type: 'json', url: '/api/reddit', color: 'bg-orange-50 text-orange-600 border-orange-200' },
+            // 海外站点 (Reddit 用特殊代理绕过拦截)
+            { name: 'Reddit (Gaming)', type: 'json', url: 'https://api.allorigins.win/raw?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fgaming%2Fhot.json', color: 'bg-orange-50 text-orange-600 border-orange-200' },
             { name: 'YouTube 热门', type: 'xml', url: '/api/youtube', color: 'bg-red-50 text-red-700 border-red-200' },
-            { name: 'Twitter 趋势(美)', type: 'xml', url: '/api/twitter', color: 'bg-sky-50 text-sky-500 border-sky-200' },
+            { name: 'Twitter 趋势', type: 'xml', url: '/api/twitter', color: 'bg-sky-50 text-sky-500 border-sky-200' },
 
-            // 国内游戏门户
+            // 国内游戏门户 
             { name: '3DM 游戏网', type: 'xml', url: '/api/3dm', color: 'bg-green-50 text-green-600 border-green-200' },
             { name: 'TapTap 热门', type: 'xml', url: '/api/taptap', color: 'bg-teal-50 text-teal-600 border-teal-200' },
             { name: '游研社', type: 'xml', url: '/api/yystv', color: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
@@ -56,15 +52,13 @@
                 let items = [];
 
                 if (platform.type === 'json') {
-                    // 解析 Reddit 的 JSON
                     const data = await response.json();
-                    if (!data.data || !data.data.children) throw new Error('数据格式错误');
+                    if (!data.data || !data.data.children) throw new Error('数据结构异常');
                     items = data.data.children.map(child => ({
                         title: child.data.title,
                         link: `https://www.reddit.com${child.data.permalink}`
                     }));
                 } else {
-                    // 亲自手撕 XML 数据
                     const text = await response.text();
                     const parser = new DOMParser();
                     const xmlDoc = parser.parseFromString(text, "text/xml");
@@ -81,7 +75,7 @@
                 }
 
                 let html = `
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[400px]">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[400px] animate-fade-in">
                         <h2 class="text-md font-bold p-3 border-b ${platform.color}">${platform.name}</h2>
                         <ul class="p-3 space-y-2 overflow-y-auto flex-1">
                 `;
@@ -100,10 +94,12 @@
                 return html;
             } catch (error) {
                 console.error(`${platform.name} 抓取失败:`, error);
+                let errorMsg = platform.name.includes('Twitter') ? '马斯克已封锁获取途径' : error.message;
+
                 return `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[400px] flex flex-col items-center justify-center">
                         <span class="text-red-400 font-bold text-center mb-2 text-sm">🚫 ${platform.name}</span>
-                        <span class="text-gray-400 text-xs text-center">${error.message}</span>
+                        <span class="text-gray-400 text-xs text-center">${errorMsg}</span>
                     </div>
                 `;
             }
@@ -111,15 +107,25 @@
 
         async function init() {
             const container = document.getElementById('board-container');
-            const loading = document.getElementById('loading');
             
-            let finalHtml = '';
-            const promises = platforms.map(p => fetchAPI(p));
-            const results = await Promise.all(promises);
-            
-            loading.style.display = 'none';
-            results.forEach(html => { finalHtml += html; });
-            container.innerHTML = finalHtml;
+            // 1. 先在页面上画出 12 个“正在加载”的框框
+            for (let i = 0; i < platforms.length; i++) {
+                container.innerHTML += `
+                    <div id="card-${i}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[400px] flex flex-col items-center justify-center">
+                        <span class="text-blue-400 font-bold mb-2 animate-pulse">⏳ 正在排队连线 ${platforms[i].name}...</span>
+                    </div>
+                `;
+            }
+
+            // 2. 瀑布流排队抓取：一个一个来，绝不拥挤！
+            for (let i = 0; i < platforms.length; i++) {
+                // 抓到一个，就替换掉对应的那个“正在加载”框
+                const html = await fetchAPI(platforms[i]);
+                document.getElementById(`card-${i}`).outerHTML = html;
+                
+                // 【核心绝招】每次抓完休息 0.8 秒，保护你的免费服务器不崩溃！
+                await new Promise(resolve => setTimeout(resolve, 800));
+            }
         }
 
         init();
