@@ -3,88 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全网极速聚合热榜</title>
+    <title>全网硬核玩家资讯矩阵</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
-<body class="bg-gray-100 p-4 md:p-8 font-sans">
+<body class="bg-gray-100 p-4 md:p-6 font-sans">
 
-    <div class="max-w-7xl mx-auto">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8">🔥 全网极速热榜</h1>
+    <div class="max-w-[1600px] mx-auto">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8 tracking-wide">
+            🎮 全网硬核资讯矩阵
+        </h1>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="board-container">
             <div id="loading" class="col-span-full text-center text-gray-500 font-bold text-xl py-10">
-                正在直连官方数据源，拒绝一切中间商赚差价...
+                🚀 正在启动全网多源抓取引擎，请耐心等待 3~5 秒...
             </div>
         </div>
     </div>
 
     <script>
-        // 这里的路由直接对应你 vercel.json 里的配置
+        // 使用公益 RSSHub 节点
+        const RSSHUB_BASE = 'https://rsshub.rssforever.com';
+        
+        // 你的 12 大终极平台清单
         const platforms = [
-            { id: 'weibo', name: '微博热搜', url: '/api/weibo', color: 'bg-red-50 text-red-600 border-red-200' },
-            { id: 'bili', name: 'B站热榜', url: '/api/bili', color: 'bg-blue-50 text-blue-600 border-blue-200' },
-            { id: 'zhihu', name: '知乎热榜', url: '/api/zhihu', color: 'bg-blue-50 text-blue-800 border-blue-200' },
-            { id: 'baidu', name: '百度热搜', url: '/api/baidu', color: 'bg-blue-50 text-blue-800 border-blue-200' }
+            // 第一梯队：大众平台
+            { name: 'B站热门', type: 'rss', route: '/bilibili/v/popular/all', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+            { name: '微博热搜', type: 'rss', route: '/weibo/search/hot', color: 'bg-red-50 text-red-600 border-red-200' },
+            { name: '抖音热点', type: 'rss', route: '/douyin/hot', color: 'bg-gray-800 text-white border-gray-700' },
+            
+            // 第二梯队：海外硬核 (需要你的电脑网络能访问外网)
+            { name: 'Reddit (Gaming)', type: 'reddit', route: 'https://www.reddit.com/r/gaming/hot.json', color: 'bg-orange-50 text-orange-600 border-orange-200' },
+            { name: 'YouTube 热门', type: 'rss', route: '/youtube/trending', color: 'bg-red-50 text-red-700 border-red-200' },
+            { name: 'Twitter 趋势(美)', type: 'rss', route: '/twitter/trends/23424977', color: 'bg-sky-50 text-sky-500 border-sky-200' },
+
+            // 第三梯队：国内游戏门户
+            { name: '3DM 游戏网', type: 'rss', route: '/3dm/news', color: 'bg-green-50 text-green-600 border-green-200' },
+            { name: 'TapTap 热门', type: 'rss', route: '/taptap/topic/hot', color: 'bg-teal-50 text-teal-600 border-teal-200' },
+            { name: '游研社', type: 'rss', route: '/yystv/docs', color: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
+            
+            // 第四梯队：深度垂类
+            { name: '机核网 Gcores', type: 'rss', route: '/gcores/category/news', color: 'bg-zinc-800 text-white border-zinc-700' },
+            { name: '游民星空', type: 'rss', route: '/gamersky/news', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+            { name: '手游那点事', type: 'rss', route: '/zhihu/people/shou-you-na-dian-shi/activities', color: 'bg-blue-50 text-blue-800 border-blue-200' }
         ];
 
         async function fetchAPI(platform) {
             try {
-                const response = await fetch(platform.url);
-                if (!response.ok) throw new Error(`HTTP 错误: ${response.status}`);
-                const json = await response.json();
+                // 如果是 Reddit，直接请求其官方公开的 JSON；其余的使用 rss2json 代理转换
+                let fetchUrl = platform.type === 'reddit' 
+                    ? platform.route 
+                    : `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(RSSHUB_BASE + platform.route)}`;
+
+                const response = await fetch(fetchUrl);
+                const data = await response.json();
                 
                 let items = [];
-                
-                // 针对不同官方 API 的专属“翻译器”
-                if (platform.id === 'weibo') {
-                    // 微博可能存在置顶热搜，这里取实时热搜列表
-                    const list = json.data.realtime || [];
-                    items = list.map(item => ({
-                        title: item.word,
-                        link: `https://s.weibo.com/weibo?q=%23${encodeURIComponent(item.word)}%23`
+
+                if (platform.type === 'reddit') {
+                    if (!data.data || !data.data.children) throw new Error('Reddit数据异常');
+                    items = data.data.children.map(child => ({
+                        title: child.data.title,
+                        link: `https://www.reddit.com${child.data.permalink}`
                     }));
-                } 
-                else if (platform.id === 'bili') {
-                    const list = json.data.list || [];
-                    items = list.map(item => ({
+                } else {
+                    if (data.status !== 'ok') throw new Error('节点抓取超时');
+                    items = data.items.map(item => ({
                         title: item.title,
-                        link: item.short_link_v2 || `https://www.bilibili.com/video/${item.bvid}`
-                    }));
-                } 
-                else if (platform.id === 'zhihu') {
-                    const list = json.data || [];
-                    items = list.map(item => {
-                        // 区分知乎的问题和专栏文章
-                        let link = `https://www.zhihu.com/question/${item.target.id}`;
-                        if (item.target.type === 'article') link = `https://zhuanlan.zhihu.com/p/${item.target.id}`;
-                        return { title: item.target.title, link: link };
-                    });
-                } 
-                else if (platform.id === 'baidu') {
-                    const list = json.data.cards[0].content || [];
-                    items = list.map(item => ({
-                        title: item.word,
-                        link: item.rawUrl
+                        link: item.link
                     }));
                 }
 
-                if (items.length === 0) throw new Error('未提取到数据');
+                if (items.length === 0) throw new Error('暂无数据');
 
                 let html = `
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[500px]">
-                        <h2 class="text-lg font-bold p-4 border-b ${platform.color}">${platform.name}</h2>
-                        <ul class="p-4 space-y-3 overflow-y-auto flex-1">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[400px]">
+                        <h2 class="text-md font-bold p-3 border-b ${platform.color}">${platform.name}</h2>
+                        <ul class="p-3 space-y-2 overflow-y-auto flex-1">
                 `;
 
-                for (let i = 0; i < Math.min(items.length, 15); i++) {
+                for (let i = 0; i < Math.min(items.length, 12); i++) {
                     html += `
                         <li class="flex items-start border-b border-gray-50 pb-2 last:border-0">
-                            <span class="font-bold text-gray-400 w-6 shrink-0">${i+1}.</span>
-                            <a href="${items[i].link}" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline transition-colors line-clamp-2 text-sm leading-tight flex-1">
+                            <span class="font-bold text-gray-400 w-5 shrink-0 text-sm">${i+1}.</span>
+                            <a href="${items[i].link}" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline transition-colors line-clamp-2 text-xs leading-tight flex-1">
                                 ${items[i].title}
                             </a>
                         </li>
@@ -94,10 +99,16 @@
                 return html;
             } catch (error) {
                 console.error(`${platform.name} 抓取失败:`, error);
+                
+                // 针对 Twitter 的特殊提示
+                let errorMsg = platform.name.includes('Twitter') 
+                    ? '马斯克已关闭免费API接口' 
+                    : '防爬虫拦截或需要代理环境';
+
                 return `
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[500px] flex flex-col items-center justify-center">
-                        <span class="text-red-400 font-bold text-center mb-2">🚫 ${platform.name}</span>
-                        <span class="text-gray-500 text-sm">官方反爬拦截或暂无数据</span>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[400px] flex flex-col items-center justify-center">
+                        <span class="text-red-400 font-bold text-center mb-2 text-sm">🚫 ${platform.name}</span>
+                        <span class="text-gray-400 text-xs text-center">${errorMsg}</span>
                     </div>
                 `;
             }
@@ -108,6 +119,7 @@
             const loading = document.getElementById('loading');
             
             let finalHtml = '';
+            // 并发获取这 12 个平台的数据
             const promises = platforms.map(p => fetchAPI(p));
             const results = await Promise.all(promises);
             
