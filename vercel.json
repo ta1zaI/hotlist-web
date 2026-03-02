@@ -1,8 +1,16 @@
 {
   "rewrites": [
-    { "source": "/api/weibo", "destination": "https://weibo.com/ajax/side/hotSearch" },
-    { "source": "/api/bili", "destination": "https://api.bilibili.com/x/web-interface/ranking/v2?rid=0&type=all" },
-    { "source": "/api/zhihu", "destination": "https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total?limit=15&desktop=true" },
-    { "source": "/api/baidu", "destination": "https://top.baidu.com/api/board?platform=pc&tab=realtime" }
+    { "source": "/api/reddit", "destination": "https://www.reddit.com/r/gaming/hot.json" },
+    { "source": "/api/bili", "destination": "https://rsshub.rssforever.com/bilibili/v/popular/all" },
+    { "source": "/api/weibo", "destination": "https://rsshub.rssforever.com/weibo/search/hot" },
+    { "source": "/api/douyin", "destination": "https://rsshub.rssforever.com/douyin/hot" },
+    { "source": "/api/youtube", "destination": "https://rsshub.rssforever.com/youtube/trending" },
+    { "source": "/api/twitter", "destination": "https://rsshub.rssforever.com/twitter/trends/23424977" },
+    { "source": "/api/3dm", "destination": "https://rsshub.rssforever.com/3dm/news" },
+    { "source": "/api/taptap", "destination": "https://rsshub.rssforever.com/taptap/topic/hot" },
+    { "source": "/api/yystv", "destination": "https://rsshub.rssforever.com/yystv/docs" },
+    { "source": "/api/gcores", "destination": "https://rsshub.rssforever.com/gcores/category/news" },
+    { "source": "/api/gamersky", "destination": "https://rsshub.rssforever.com/gamersky/news" },
+    { "source": "/api/shouyou", "destination": "https://rsshub.rssforever.com/zhihu/people/shou-you-na-dian-shi/activities" }
   ]
 }
