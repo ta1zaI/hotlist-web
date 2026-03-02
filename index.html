@@ -116,4 +116,25 @@
         async function init() {
             const container = document.getElementById('board-container');
             
-            // 先画出
+            // 先画出骨架屏
+            for (let i = 0; i < platforms.length; i++) {
+                container.innerHTML += `
+                    <div id="card-${i}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[400px] flex flex-col items-center justify-center">
+                        <span class="text-blue-400 font-bold mb-2 animate-pulse text-sm">⏳ 正在连线 ${platforms[i].name}...</span>
+                    </div>
+                `;
+            }
+
+            // 瀑布流排队渲染
+            for (let i = 0; i < platforms.length; i++) {
+                const html = await fetchAPI(platforms[i]);
+                document.getElementById(`card-${i}`).outerHTML = html;
+                // 停顿 0.5 秒，享受板块逐个亮起的视觉快感
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
