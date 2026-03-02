@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的全平台热榜</title>
+    <title>我的游戏资讯热榜</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 6px; }
@@ -13,22 +13,22 @@
 <body class="bg-gray-100 p-4 md:p-8 font-sans">
 
     <div class="max-w-7xl mx-auto">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8">🔥 实时聚合热榜</h1>
+        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8">🎮 核心玩家资讯站</h1>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container">
             <div id="loading" class="col-span-full text-center text-gray-500 font-bold text-xl py-10">
-                正在通过 Vercel 直连全球 RSSHub 节点...
+                正在通过专属引擎加载全网游戏资讯...
             </div>
         </div>
     </div>
 
     <script>
-        // 请求本地代理路径，彻底告别所有跨域和防火墙拦截！
+        // 全部请求你自己的代理路径
         const platforms = [
-            { name: '微博热搜', url: '/api/weibo', color: 'bg-red-50 text-red-600 border-red-200' },
-            { name: 'B站热搜', url: '/api/bili', color: 'bg-blue-50 text-blue-600 border-blue-200' },
-            { name: '机核网资讯', url: '/api/gcores', color: 'bg-zinc-800 text-white border-zinc-700' },
-            { name: '游民星空', url: '/api/gamersky', color: 'bg-orange-50 text-orange-600 border-orange-200' }
+            { name: '3DM 游戏网', url: '/api/3dm', color: 'bg-orange-50 text-orange-600 border-orange-200' },
+            { name: '游研社', url: '/api/yystv', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+            { name: 'TapTap 热门', url: '/api/taptap', color: 'bg-teal-50 text-teal-600 border-teal-200' },
+            { name: '游民星空', url: '/api/gamersky', color: 'bg-zinc-800 text-white border-zinc-700' }
         ];
 
         async function fetchAPI(platform) {
@@ -36,9 +36,7 @@
                 const response = await fetch(platform.url);
                 if (!response.ok) throw new Error(`HTTP 错误: ${response.status}`);
                 
-                // RSSHub 返回的是 XML 文本
                 const text = await response.text();
-                
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(text, "text/xml");
                 const items = xmlDoc.querySelectorAll("item");
