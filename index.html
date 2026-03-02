@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的硬核游戏资讯站</title>
+    <title>全网极速聚合热榜</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 6px; }
@@ -13,22 +13,22 @@
 <body class="bg-gray-100 p-4 md:p-8 font-sans">
 
     <div class="max-w-7xl mx-auto">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8">🎮 硬核玩家资讯站</h1>
+        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8">🔥 全网极速热榜</h1>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container">
             <div id="loading" class="col-span-full text-center text-gray-500 font-bold text-xl py-10">
-                正在通过高配节点疾速加载资讯...
+                正在通过专属缓存接口疾速加载...
             </div>
         </div>
     </div>
 
     <script>
-        // 指向你自己的内部代理路径
+        // 全部请求你自己的代理路径
         const platforms = [
-            { name: '游民星空', url: '/api/gamersky', color: 'bg-zinc-800 text-white border-zinc-700' },
-            { name: '机核网资讯', url: '/api/gcores', color: 'bg-red-50 text-red-600 border-red-200' },
-            { name: '游研社', url: '/api/yystv', color: 'bg-blue-50 text-blue-600 border-blue-200' },
-            { name: 'B站单机热门', url: '/api/bili-game', color: 'bg-pink-50 text-pink-600 border-pink-200' }
+            { name: '微博热搜', url: '/api/weibo', color: 'bg-red-50 text-red-600 border-red-200' },
+            { name: 'B站热搜', url: '/api/bili', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+            { name: '知乎热榜', url: '/api/zhihu', color: 'bg-blue-50 text-blue-800 border-blue-200' },
+            { name: '3DM 游戏', url: '/api/3dm', color: 'bg-orange-50 text-orange-600 border-orange-200' }
         ];
 
         async function fetchAPI(platform) {
@@ -36,12 +36,11 @@
                 const response = await fetch(platform.url);
                 if (!response.ok) throw new Error(`HTTP 错误: ${response.status}`);
                 
-                const text = await response.text();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(text, "text/xml");
-                const items = xmlDoc.querySelectorAll("item");
-
-                if (items.length === 0) throw new Error('无数据');
+                // DailyHot 返回的是纯净的 JSON 数据
+                const json = await response.json();
+                
+                // 校验返回的数据格式
+                if (json.code !== 200 || !json.data) throw new Error('接口数据异常');
 
                 let html = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[500px]">
@@ -49,19 +48,21 @@
                         <ul class="p-4 space-y-3 overflow-y-auto flex-1">
                 `;
 
+                // 提取数据数组
+                const items = json.data;
                 for (let i = 0; i < Math.min(items.length, 15); i++) {
-                    const titleNode = items[i].querySelector("title");
-                    const linkNode = items[i].querySelector("link");
-                    
-                    const title = titleNode ? titleNode.textContent : '无标题';
-                    const link = linkNode ? linkNode.textContent : '#';
+                    const title = items[i].title || '无标题';
+                    const link = items[i].url || '#';
+                    const hot = items[i].hot || ''; // 有些平台会返回热度值
                     
                     html += `
-                        <li class="flex items-start">
-                            <span class="font-bold text-gray-400 w-6 shrink-0">${i+1}.</span>
-                            <a href="${link}" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline transition-colors line-clamp-2 text-sm leading-tight">
-                                ${title}
-                            </a>
+                        <li class="flex flex-col items-start border-b border-gray-50 pb-2 last:border-0">
+                            <div class="flex items-start w-full">
+                                <span class="font-bold text-gray-400 w-6 shrink-0">${i+1}.</span>
+                                <a href="${link}" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline transition-colors line-clamp-2 text-sm leading-tight flex-1">
+                                    ${title}
+                                </a>
+                            </div>
                         </li>
                     `;
                 }
@@ -72,7 +73,7 @@
                 return `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[500px] flex flex-col items-center justify-center">
                         <span class="text-red-400 font-bold text-center mb-2">🚫 ${platform.name}</span>
-                        <span class="text-gray-500 text-sm">源站超时或遭遇反爬</span>
+                        <span class="text-gray-500 text-sm">节点抓取超时或维护中</span>
                     </div>
                 `;
             }
