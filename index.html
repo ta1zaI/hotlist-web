@@ -17,17 +17,15 @@
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container">
             <div id="loading" class="col-span-full text-center text-gray-500 font-bold text-xl py-10">
-                正在通过榜眼专属密钥连接官方服务器...
+                正在与官方服务器进行安全握手...
             </div>
         </div>
     </div>
 
     <script>
-        // 【关键】这里填入你截图里的 Access Key
+        // 你的 Access Key
         const MY_API_KEY = '657fc3c8b2782918892872580237c11d';
 
-        // 注意：榜眼数据是通过 Node ID 来区分平台的
-        // 下面我先放了几个常见的 ID 示例，你需要去榜眼数据的控制台核对一下具体平台的 ID 是什么
         const platforms = [
             { name: '微博热搜', url: '/tophub/nodes/KqndgxeLl9', color: 'bg-red-50 text-red-600 border-red-200' },
             { name: 'B站热搜', url: '/tophub/nodes/74Kvxwokvd', color: 'bg-blue-50 text-blue-600 border-blue-200' },
@@ -37,7 +35,6 @@
 
         async function fetchAPI(platform) {
             try {
-                // 请求时，把你的密钥放在 Header 里（这是官方 API 的标准做法）
                 const response = await fetch(platform.url, {
                     method: 'GET',
                     headers: {
@@ -45,11 +42,17 @@
                     }
                 });
                 
-                if (!response.ok) throw new Error(`HTTP 错误: ${response.status}`);
                 const json = await response.json();
                 
-                // 榜眼数据的热搜列表通常在 data.items 里
-                if (!json.data || !json.data.items) throw new Error('接口数据格式异常');
+                // ！！！超级听诊器：把官方的真实回复打印到控制台！！！
+                console.log(`【${platform.name}】官方真实回复:`, json);
+                
+                // 如果官方明确返回了错误（比如密钥无效、ID错误等）
+                if (json.error === true || json.status !== 200) {
+                    throw new Error(json.message || '官方拒绝了请求');
+                }
+
+                if (!json.data || !json.data.items) throw new Error('没有找到 items 列表');
 
                 let html = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[500px]">
@@ -74,11 +77,11 @@
                 html += `</ul></div>`;
                 return html;
             } catch (error) {
-                console.error(`${platform.name} 抓取失败:`, error);
+                // 现在页面上会直接显示官方到底在抱怨什么
                 return `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[500px] flex flex-col items-center justify-center">
                         <span class="text-red-400 font-bold text-center mb-2">🚫 ${platform.name}</span>
-                        <span class="text-gray-500 text-sm">授权失败或节点ID错误</span>
+                        <span class="text-gray-500 text-sm">${error.message}</span>
                     </div>
                 `;
             }
