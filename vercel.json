@@ -1,8 +1,5 @@
 {
   "rewrites": [
-    { "source": "/api/weibo", "destination": "https://api.dailyhot.icu/weibo" },
-    { "source": "/api/bili", "destination": "https://api.dailyhot.icu/bilibili" },
-    { "source": "/api/zhihu", "destination": "https://api.dailyhot.icu/zhihu" },
-    { "source": "/api/3dm", "destination": "https://api.dailyhot.icu/3dm" }
+    { "source": "/tophub/:path*", "destination": "https://api.tophubdata.com/:path*" }
   ]
 }
