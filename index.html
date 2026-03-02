@@ -17,13 +17,13 @@
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container">
             <div id="loading" class="col-span-full text-center text-gray-500 font-bold text-xl py-10">
-                正在通过 Vercel 服务器无视防御抓取数据...
+                正在通过 Vercel 无缝代理加载数据...
             </div>
         </div>
     </div>
 
     <script>
-        // 注意看！这里的 url 变成了你自己网站内部的路径，彻底告别跨域！
+        // 依然请求自己的代理路径，不会有任何本地跨域问题
         const platforms = [
             { name: '微博热搜', url: '/api/weibo', color: 'bg-red-50 text-red-600 border-red-200' },
             { name: 'B站热搜', url: '/api/bili', color: 'bg-blue-50 text-blue-600 border-blue-200' },
@@ -33,11 +33,15 @@
 
         async function fetchAPI(platform) {
             try {
-                // 直接请求同域名下的代理路径，100% 不会被拦截
                 const response = await fetch(platform.url);
+                
+                // 如果遭遇 502 等非 200 状态，直接抛出错误
+                if (!response.ok) throw new Error(`HTTP 错误: ${response.status}`);
+                
                 const json = await response.json();
                 
-                if (!json.data) throw new Error('接口数据异常');
+                // 校验韩小韩 API 的返回格式
+                if (!json.success || !json.data) throw new Error('接口数据格式异常');
 
                 let html = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[500px]">
@@ -47,9 +51,9 @@
 
                 const items = json.data;
                 for (let i = 0; i < Math.min(items.length, 15); i++) {
-                    // TenAPI 返回的标题是 name，链接是 url
-                    const title = items[i].name || '无标题';
-                    const link = items[i].url || '#';
+                    // 适配韩小韩的字段名
+                    const title = items[i].title || '无标题';
+                    const link = items[i].url || items[i].mobilUrl || `https://www.baidu.com/s?wd=${encodeURIComponent(title)}`;
                     
                     html += `
                         <li class="flex items-start">
@@ -67,7 +71,7 @@
                 return `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[500px] flex flex-col items-center justify-center">
                         <span class="text-red-400 font-bold text-center mb-2">🚫 ${platform.name}</span>
-                        <span class="text-gray-500 text-sm">代理节点抓取超时</span>
+                        <span class="text-gray-500 text-sm">代理获取成功，但数据解析失败</span>
                     </div>
                 `;
             }
