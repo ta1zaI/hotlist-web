@@ -3,96 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>硬核玩家资讯矩阵 - 稳定版</title>
+    <title>Global Hot Matrix - 全球热点矩阵</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
     </style>
 </head>
-<body class="bg-gray-100 p-4 md:p-6 font-sans">
+<body class="bg-slate-900 p-4 md:p-8 font-sans text-slate-200">
 
-    <div class="max-w-[1600px] mx-auto">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8 tracking-wide">
-            🎮 硬核玩家全网矩阵
-        </h1>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="board-container"></div>
+    <div class="max-w-[1400px] mx-auto">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent italic">
+                GLOBAL HOT MATRIX
+            </h1>
+            <p class="text-slate-400 tracking-widest text-sm uppercase font-bold">实时全网热点观察站</p>
+        </header>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container">
+            </div>
     </div>
 
     <script>
-        // 【已保留】你的成功之匙
+        // 【已确认】你的专属 Cloudflare 穿透节点
         const MY_CF_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
         const platforms = [
-            // 1. 锁死成功路径 (保持原样)
-            { id: 'reddit', name: 'Reddit (Gaming)', type: 'reddit', url: 'https://www.reddit.com/r/gaming/hot.json', color: 'bg-orange-600' },
-            { id: 'gamersky', name: '游民星空', type: 'rss', url: 'https://rsshub.app/gamersky/news', color: 'bg-yellow-600' },
-            
-            // 2. 切换到极速 JSON API (这些平台使用 DailyHot 缓存，不会报错)
-            { id: 'weibo', name: '微博热搜', type: 'hot', url: 'https://api.v8.1n73r.me/weibo', color: 'bg-red-500' },
-            { id: 'bili', name: 'B站热门', type: 'hot', url: 'https://api.v8.1n73r.me/bilibili', color: 'bg-blue-400' },
-            { id: 'zhihu', name: '知乎热榜', type: 'hot', url: 'https://api.v8.1n73r.me/zhihu', color: 'bg-blue-600' },
-            { id: 'douyin', name: '抖音热点', type: 'hot', url: 'https://api.v8.1n73r.me/douyin', color: 'bg-black' },
-            
-            // 3. 游戏垂直站 (继续尝试 RSS 通路，若不亮我们再单独攻克)
-            { id: '3dm', name: '3DM游戏网', type: 'rss', url: 'https://rsshub.app/3dm/news', color: 'bg-green-600' },
-            { id: 'taptap', name: 'TapTap热门', type: 'rss', url: 'https://rsshub.rssforever.com/taptap/topic/hot', color: 'bg-teal-500' },
-            { id: 'yystv', name: '游研社', type: 'rss', url: 'https://hub.slarker.me/yystv/docs', color: 'bg-indigo-600' },
-            { id: 'gcores', name: '机核网 Gcores', type: 'rss', url: 'https://rsshub.app/gcores/category/news', color: 'bg-zinc-800' },
-            { id: 'youtube', name: 'YouTube热门', type: 'rss', url: 'https://rsshub.app/youtube/trending', color: 'bg-red-700' },
-            { id: 'shouyou', name: '手游那点事', type: 'rss', url: 'https://rsshub.app/zhihu/people/shou-you-na-dian-shi/activities', color: 'bg-blue-800' }
+            { id: 'reddit', name: 'Reddit (All)', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', color: 'from-orange-500 to-red-600' },
+            { id: 'youtube', name: 'YouTube Trending', type: 'rss', url: 'https://rsshub.app/youtube/trending', color: 'from-red-600 to-red-800' },
+            { id: 'twitter', name: 'Twitter (Global)', type: 'rss', url: 'https://rsshub.app/twitter/trends/1', color: 'from-sky-400 to-blue-600' },
+            { id: 'tiktok', name: 'TikTok Trending', type: 'rss', url: 'https://rsshub.app/tiktok/trending/worldwide', color: 'from-slate-700 to-black' },
+            { id: 'imdb', name: 'IMDb Movies', type: 'rss', url: 'https://rsshub.app/imdb/trending/movie', color: 'from-yellow-400 to-yellow-600' }
         ];
 
         async function fetchAPI(platform) {
             try {
-                // 所有请求都通过你的 CF 代理，确保万无一失
+                // 通过你的 CF Worker 强行抓取
                 const response = await fetch(MY_CF_PROXY + encodeURIComponent(platform.url));
-                const json = await response.json();
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
                 let items = [];
 
-                if (platform.type === 'reddit') {
-                    items = json.data.children.map(c => ({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
-                } 
-                else if (platform.type === 'hot') {
-                    // DailyHot 数据解析
-                    items = json.data.map(i => ({ title: i.title, link: i.url }));
-                }
-                else {
-                    // 游民星空等 RSS 的 JSON 版转换 (如果 rsshub 报 500/503 这里会捕获)
-                    // 注意：为了速度，这里我们尝试让代理端直接返回 JSON 格式
-                    const rssResponse = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(platform.url)}`);
-                    const rssData = await rssResponse.json();
-                    if (rssData.status !== 'ok') throw new Error('RSS转换失败');
-                    items = rssData.items.map(i => ({ title: i.title, link: i.link }));
+                if (platform.type === 'json') {
+                    const data = await response.json();
+                    items = data.data.children.map(c => ({
+                        title: c.data.title,
+                        link: `https://www.reddit.com${c.data.permalink}`
+                    }));
+                } else {
+                    const text = await response.text();
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(text, "text/xml");
+                    const nodes = xmlDoc.querySelectorAll("item");
+                    
+                    if (nodes.length === 0) throw new Error('节点暂无更新');
+
+                    for (let i = 0; i < Math.min(nodes.length, 12); i++) {
+                        items.push({
+                            title: nodes[i].querySelector("title")?.textContent || 'No Title',
+                            link: nodes[i].querySelector("link")?.textContent || '#'
+                        });
+                    }
                 }
 
-                let html = `<div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-[400px] animate-fade-in overflow-hidden">
-                    <div class="p-3 ${platform.color} text-white font-bold">${platform.name}</div>
-                    <ul class="p-3 space-y-2 overflow-y-auto flex-1 text-xs">`;
-                items.slice(0, 15).forEach(item => {
-                    html += `<li class="border-b border-gray-50 pb-1"><a href="${item.link}" target="_blank" class="text-gray-700 hover:text-blue-600 line-clamp-2">${item.title}</a></li>`;
+                let html = `
+                    <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col h-[500px] animate-fade-in">
+                        <div class="p-4 bg-gradient-to-br ${platform.color} text-white">
+                            <h2 class="text-lg font-black italic uppercase tracking-tighter">${platform.name}</h2>
+                        </div>
+                        <ul class="p-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+                `;
+
+                items.forEach((item, i) => {
+                    html += `
+                        <li class="group border-b border-slate-700/50 pb-3 last:border-0">
+                            <div class="flex items-start gap-3">
+                                <span class="text-slate-500 font-mono text-xs mt-1 font-bold">${(i+1).toString().padStart(2, '0')}</span>
+                                <a href="${item.link}" target="_blank" class="text-slate-200 group-hover:text-blue-400 transition-colors text-sm font-medium leading-snug line-clamp-2">
+                                    ${item.title}
+                                </a>
+                            </div>
+                        </li>
+                    `;
                 });
                 return html + `</ul></div>`;
-            } catch (err) {
-                return `<div class="bg-white rounded-xl border border-red-100 h-[400px] flex flex-col items-center justify-center p-4">
-                    <span class="text-red-400 font-bold mb-2 text-sm">🚫 ${platform.name}</span>
-                    <span class="text-gray-400 text-[10px] text-center">源站繁忙或需要刷新</span>
-                </div>`;
+            } catch (error) {
+                console.error(error);
+                return `
+                    <div class="bg-slate-800 rounded-2xl border border-red-900/30 h-[500px] flex flex-col items-center justify-center p-6 text-center">
+                        <div class="w-12 h-12 rounded-full bg-red-900/20 flex items-center justify-center mb-4 text-red-500">!</div>
+                        <h3 class="text-red-400 font-bold mb-2">${platform.name}</h3>
+                        <p class="text-slate-500 text-xs leading-relaxed">连接节点失败，请确认你的浏览器已开启加速器访问全球网络。</p>
+                        <button onclick="location.reload()" class="mt-4 px-4 py-1 border border-slate-600 rounded-full text-xs hover:bg-slate-700 transition-all">重试</button>
+                    </div>
+                `;
             }
         }
 
         async function init() {
             const container = document.getElementById('board-container');
-            container.innerHTML = platforms.map((p, i) => `<div id="card-${i}" class="h-[400px] bg-white rounded-xl animate-pulse flex items-center justify-center text-gray-300 text-sm">连接中...</div>`).join('');
+            // 初始化占位
+            container.innerHTML = platforms.map((p, i) => `<div id="card-${i}" class="h-[500px] bg-slate-800 rounded-2xl border border-slate-700 animate-pulse"></div>`).join('');
             
+            // 顺序加载
             for (let i = 0; i < platforms.length; i++) {
                 const html = await fetchAPI(platforms[i]);
                 document.getElementById(`card-${i}`).outerHTML = html;
                 await new Promise(r => setTimeout(r, 200)); 
             }
         }
+
         init();
     </script>
 </body>
