@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/api/weibo", "destination": "https://tenapi.cn/v2/weibohot" },
+    { "source": "/api/bili", "destination": "https://tenapi.cn/v2/bilihot" },
+    { "source": "/api/zhihu", "destination": "https://tenapi.cn/v2/zhihuhot" },
+    { "source": "/api/douyin", "destination": "https://tenapi.cn/v2/douyinhot" }
+  ]
+}
