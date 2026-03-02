@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的官方聚合热榜</title>
+    <title>全网极速聚合热榜</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 6px; }
@@ -13,46 +13,66 @@
 <body class="bg-gray-100 p-4 md:p-8 font-sans">
 
     <div class="max-w-7xl mx-auto">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8">🔥 官方权威热榜</h1>
+        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8">🔥 全网极速热榜</h1>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container">
             <div id="loading" class="col-span-full text-center text-gray-500 font-bold text-xl py-10">
-                正在与官方服务器进行安全握手...
+                正在直连官方数据源，拒绝一切中间商赚差价...
             </div>
         </div>
     </div>
 
     <script>
-        // 你的 Access Key
-        const MY_API_KEY = '657fc3c8b2782918892872580237c11d';
-
+        // 这里的路由直接对应你 vercel.json 里的配置
         const platforms = [
-            { name: '微博热搜', url: '/tophub/nodes/KqndgxeLl9', color: 'bg-red-50 text-red-600 border-red-200' },
-            { name: 'B站热搜', url: '/tophub/nodes/74Kvxwokvd', color: 'bg-blue-50 text-blue-600 border-blue-200' },
-            { name: '知乎热榜', url: '/tophub/nodes/mproPpoq6O', color: 'bg-blue-50 text-blue-800 border-blue-200' },
-            { name: '抖音热点', url: '/tophub/nodes/DpQvNABoNE', color: 'bg-gray-800 text-white border-gray-700' }
+            { id: 'weibo', name: '微博热搜', url: '/api/weibo', color: 'bg-red-50 text-red-600 border-red-200' },
+            { id: 'bili', name: 'B站热榜', url: '/api/bili', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+            { id: 'zhihu', name: '知乎热榜', url: '/api/zhihu', color: 'bg-blue-50 text-blue-800 border-blue-200' },
+            { id: 'baidu', name: '百度热搜', url: '/api/baidu', color: 'bg-blue-50 text-blue-800 border-blue-200' }
         ];
 
         async function fetchAPI(platform) {
             try {
-                const response = await fetch(platform.url, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': MY_API_KEY
-                    }
-                });
-                
+                const response = await fetch(platform.url);
+                if (!response.ok) throw new Error(`HTTP 错误: ${response.status}`);
                 const json = await response.json();
                 
-                // ！！！超级听诊器：把官方的真实回复打印到控制台！！！
-                console.log(`【${platform.name}】官方真实回复:`, json);
+                let items = [];
                 
-                // 如果官方明确返回了错误（比如密钥无效、ID错误等）
-                if (json.error === true || json.status !== 200) {
-                    throw new Error(json.message || '官方拒绝了请求');
+                // 针对不同官方 API 的专属“翻译器”
+                if (platform.id === 'weibo') {
+                    // 微博可能存在置顶热搜，这里取实时热搜列表
+                    const list = json.data.realtime || [];
+                    items = list.map(item => ({
+                        title: item.word,
+                        link: `https://s.weibo.com/weibo?q=%23${encodeURIComponent(item.word)}%23`
+                    }));
+                } 
+                else if (platform.id === 'bili') {
+                    const list = json.data.list || [];
+                    items = list.map(item => ({
+                        title: item.title,
+                        link: item.short_link_v2 || `https://www.bilibili.com/video/${item.bvid}`
+                    }));
+                } 
+                else if (platform.id === 'zhihu') {
+                    const list = json.data || [];
+                    items = list.map(item => {
+                        // 区分知乎的问题和专栏文章
+                        let link = `https://www.zhihu.com/question/${item.target.id}`;
+                        if (item.target.type === 'article') link = `https://zhuanlan.zhihu.com/p/${item.target.id}`;
+                        return { title: item.target.title, link: link };
+                    });
+                } 
+                else if (platform.id === 'baidu') {
+                    const list = json.data.cards[0].content || [];
+                    items = list.map(item => ({
+                        title: item.word,
+                        link: item.rawUrl
+                    }));
                 }
 
-                if (!json.data || !json.data.items) throw new Error('没有找到 items 列表');
+                if (items.length === 0) throw new Error('未提取到数据');
 
                 let html = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[500px]">
@@ -60,16 +80,12 @@
                         <ul class="p-4 space-y-3 overflow-y-auto flex-1">
                 `;
 
-                const items = json.data.items;
                 for (let i = 0; i < Math.min(items.length, 15); i++) {
-                    const title = items[i].title || '无标题';
-                    const link = items[i].url || '#';
-                    
                     html += `
                         <li class="flex items-start border-b border-gray-50 pb-2 last:border-0">
                             <span class="font-bold text-gray-400 w-6 shrink-0">${i+1}.</span>
-                            <a href="${link}" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline transition-colors line-clamp-2 text-sm leading-tight">
-                                ${title}
+                            <a href="${items[i].link}" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline transition-colors line-clamp-2 text-sm leading-tight flex-1">
+                                ${items[i].title}
                             </a>
                         </li>
                     `;
@@ -77,11 +93,11 @@
                 html += `</ul></div>`;
                 return html;
             } catch (error) {
-                // 现在页面上会直接显示官方到底在抱怨什么
+                console.error(`${platform.name} 抓取失败:`, error);
                 return `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[500px] flex flex-col items-center justify-center">
                         <span class="text-red-400 font-bold text-center mb-2">🚫 ${platform.name}</span>
-                        <span class="text-gray-500 text-sm">${error.message}</span>
+                        <span class="text-gray-500 text-sm">官方反爬拦截或暂无数据</span>
                     </div>
                 `;
             }
