@@ -2,111 +2,88 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global 5 Matrix - Intelligence Feed</title>
+    <title>Global 5 Intelligence Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        @keyframes pulse-border { 0% { border-color: rgba(16, 185, 129, 0.2); } 50% { border-color: rgba(16, 185, 129, 0.8); } 100% { border-color: rgba(16, 185, 129, 0.2); } }
-        .border-pulse { animation: pulse-border 2s infinite; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-slate-950 p-4 md:p-8 font-mono text-slate-300">
+<body class="bg-[#050505] p-4 md:p-8 font-mono text-emerald-500">
 
     <div class="max-w-[1600px] mx-auto">
-        <header class="mb-10 border-b border-slate-800 pb-6 flex justify-between items-end">
+        <header class="mb-10 border-b border-emerald-900/30 pb-6 flex justify-between items-end">
             <div>
-                <h1 class="text-3xl font-black italic tracking-tighter text-white uppercase italic">Global 5 Matrix</h1>
-                <p class="text-[10px] text-emerald-500 mt-1 uppercase tracking-widest font-bold">Secure Data Stream // Node: Billowing-Salad-1C9B</p>
+                <h1 class="text-2xl font-black tracking-widest uppercase">Global Matrix v2.0</h1>
+                <p class="text-[9px] text-emerald-800 mt-1 uppercase">Node: Billowing-Salad // Status: Direct-Link Enabled</p>
             </div>
-            <div class="hidden md:block text-[10px] text-slate-500">ENCRYPTED CONNECTION ACTIVE</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
+        // 你的金钥匙
         const PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
-        // 备选节点资源池：避开已知的 530/503 故障点
-        const MIRRORS = [
-            'https://hub.slarker.me',
-            'https://rsshub.app',
-            'https://rss.shab.fun',
-            'https://rsshub.anyant.com'
-        ];
-
         const platforms = [
-            { id: 'reddit', name: 'Reddit /r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', color: 'border-orange-500' },
-            { id: 'youtube', name: 'YouTube Trending', route: '/youtube/trending/en', color: 'border-red-600' },
-            { id: 'imdb', name: 'IMDb Movies', route: '/imdb/trending/movie', color: 'border-yellow-500' },
-            { id: 'twitter', name: 'X / Twitter', route: '/twitter/trends/1', color: 'border-slate-100' },
-            { id: 'tiktok', name: 'TikTok Trend', route: '/tiktok/trending/worldwide', color: 'border-pink-500' }
+            { name: 'Reddit /r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', color: 'border-orange-600' },
+            { name: 'YouTube Trending', type: 'invidious', url: 'https://yewtu.be/api/v1/trending', color: 'border-red-600' },
+            { name: 'IMDb Movies', type: 'rss', url: 'https://www.imdb.com/list/ls004127443/rss', color: 'border-yellow-600' },
+            { name: 'X / Twitter', type: 'hot', url: 'https://api.v8.1n73r.me/twitter', color: 'border-white' },
+            { name: 'TikTok Trend', type: 'hot', url: 'https://api.v8.1n73r.me/douyin', color: 'border-pink-600' }
         ];
 
-        async function fetchWithRetry(platform, mirrorIndex = 0) {
-            // Reddit 走官方 JSON 通道 (最稳)
-            if (platform.url) {
-                const r = await fetch(PROXY + encodeURIComponent(platform.url));
-                if (!r.ok) throw new Error('OFFLINE');
-                return await r.json();
+        async function fetchAPI(platform) {
+            const response = await fetch(PROXY + encodeURIComponent(platform.url));
+            if (!response.ok) throw new Error('OFFLINE');
+            const data = await response.json();
+            
+            let items = [];
+            if (platform.type === 'json') {
+                items = data.data.children.map(c => ({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
+            } else if (platform.type === 'invidious') {
+                // Invidious JSON 格式解析
+                items = data.map(v => ({ title: v.title, link: `https://www.youtube.com/watch?v=${v.videoId}` }));
+            } else if (platform.type === 'hot') {
+                // DailyHot 聚合数据
+                items = data.data.map(i => ({ title: i.title, link: i.url }));
+            } else if (platform.type === 'rss') {
+                // 借用官方解析
+                const rssRes = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(platform.url)}`);
+                const rssData = await rssRes.json();
+                items = rssData.items.map(i => ({ title: i.title, link: i.link }));
             }
-
-            // 其他平台轮询镜像站
-            try {
-                const target = MIRRORS[mirrorIndex] + platform.route;
-                const r = await fetch(PROXY + encodeURIComponent(target));
-                if (!r.ok) throw new Error('BLOCK');
-                return await r.text();
-            } catch (e) {
-                if (mirrorIndex < MIRRORS.length - 1) {
-                    console.log(`Mirror failed, switching to ${MIRRORS[mirrorIndex+1]}`);
-                    return await fetchWithRetry(platform, mirrorIndex + 1);
-                }
-                throw e;
-            }
+            return items;
         }
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            container.innerHTML += `<div id="card-${index}" class="h-[550px] bg-slate-900/50 border border-slate-800 rounded-2xl flex items-center justify-center border-pulse"><span class="text-[10px] animate-pulse text-emerald-800 tracking-tighter uppercase font-bold">Connecting_${platform.name}...</span></div>`;
+            container.innerHTML += `<div id="card-${index}" class="h-[550px] bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-center"><span class="text-[10px] animate-pulse uppercase">Fetching_${platform.name}...</span></div>`;
 
             try {
-                const data = await fetchWithRetry(platform);
-                let items = [];
-
-                if (platform.type === 'json') {
-                    items = data.data.children.map(c => ({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
-                } else {
-                    const doc = new DOMParser().parseFromString(data, "text/xml");
-                    const nodes = doc.querySelectorAll("item");
-                    if (nodes.length === 0) throw new Error('EMPTY');
-                    nodes.forEach((n, i) => { if(i < 15) items.push({ title: n.querySelector("title")?.textContent, link: n.querySelector("link")?.textContent }); });
-                }
-
+                const items = await fetchAPI(platform);
                 let html = `
-                    <div class="h-[550px] bg-slate-900 border-t-4 ${platform.color} rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-all hover:bg-slate-900">
-                        <div class="p-4 bg-slate-800/40 flex justify-between items-center border-b border-slate-800">
-                            <span class="font-black text-xs uppercase text-white tracking-tighter">${platform.name}</span>
-                            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]"></div>
+                    <div class="h-[550px] bg-zinc-900/80 border-t-2 ${platform.color} rounded-xl flex flex-col overflow-hidden shadow-2xl">
+                        <div class="p-4 bg-black/40 flex justify-between items-center border-b border-white/5">
+                            <span class="font-bold text-[10px] uppercase">${platform.name}</span>
+                            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
                         </div>
-                        <ul class="p-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+                        <ul class="p-4 space-y-4 overflow-y-auto flex-1 text-[11px] leading-relaxed">
                 `;
-                items.forEach(item => {
-                    html += `<li class="border-b border-slate-800/50 pb-3 last:border-0 hover:pl-1 transition-all"><a href="${item.link}" target="_blank" class="text-[11px] leading-relaxed hover:text-emerald-400 block tracking-tight"> ${item.title}</a></li>`;
+                items.slice(0, 15).forEach(item => {
+                    html += `<li class="border-b border-white/5 pb-2 hover:bg-white/5 transition-all"><a href="${item.link}" target="_blank" class="text-zinc-400 hover:text-white block"> ${item.title}</a></li>`;
                 });
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
-                document.getElementById(`card-${index}`).innerHTML = `<div class="text-center p-6"><span class="text-red-500 font-bold text-xs uppercase italic">[ACCESS_DENIED]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">Node unavailable. Please check local VPN connection.</p></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center"><span class="text-red-900 font-bold text-[10px] uppercase">[ACCESS_DENIED]</span><p class="text-[9px] text-zinc-600 mt-2 italic">Official link connection failed. Re-syncing recommended.</p></div>`;
             }
         }
 
         async function init() {
-            // 一个一个来，防止并发太高被代理层掐断
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
-                await new Promise(r => setTimeout(r, 400)); 
+                await new Promise(r => setTimeout(r, 300)); 
             }
         }
         init();
