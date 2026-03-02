@@ -1,8 +1,8 @@
 {
   "rewrites": [
-    { "source": "/api/3dm", "destination": "https://rss-hub-livid-zeta.vercel.app/3dm/news" },
-    { "source": "/api/yystv", "destination": "https://rss-hub-livid-zeta.vercel.app/yystv/docs" },
-    { "source": "/api/taptap", "destination": "https://rss-hub-livid-zeta.vercel.app/taptap/topic/hot" },
-    { "source": "/api/gamersky", "destination": "https://rss-hub-livid-zeta.vercel.app/gamersky/news" }
+    { "source": "/api/gamersky", "destination": "https://rsshub.run/gamersky/news" },
+    { "source": "/api/gcores", "destination": "https://rsshub.run/gcores/category/news" },
+    { "source": "/api/yystv", "destination": "https://rsshub.run/yystv/docs" },
+    { "source": "/api/bili-game", "destination": "https://rsshub.run/bilibili/v/video/17" }
   ]
 }
