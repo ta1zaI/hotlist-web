@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全网硬核玩家资讯矩阵</title>
+    <title>硬核玩家全网矩阵 - 最终稳定版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 6px; }
@@ -24,80 +24,70 @@
     </div>
 
     <script>
-        // 【保持不动】你的成功之匙
+        // 【已保留】你的专属成功金钥匙
         const MY_CF_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
-        
-        // 【稳健分流】把数据源分散开
-        const PRIVATE_NODE = 'https://rss-hub-livid-zeta.vercel.app'; // 你的私人引擎
-        const PUBLIC_NODES = [
+
+        // 【稳健资源池】这些是目前全球最稳定的 5 个节点
+        const RSS_NODES = [
+            'https://rsshub.app',
             'https://rsshub.rssforever.com',
             'https://hub.slarker.me',
-            'https://rss.shab.fun'
+            'https://rss.shab.fun',
+            'https://rsshub.anyant.com'
         ];
 
         const platforms = [
-            // 成功点：Reddit (保持原样)
+            // 已确认成功的路径
             { name: 'Reddit (Gaming)', type: 'json', url: 'https://www.reddit.com/r/gaming/hot.json', color: 'bg-orange-50 text-orange-600 border-orange-200' },
+            { name: '游民星空', type: 'xml', route: '/gamersky/news', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
             
-            // 核心点：游戏资讯 (切回你最稳定的私人 Vercel 引擎)
-            { name: '游民星空', type: 'xml', url: `${PRIVATE_NODE}/gamersky/news`, color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-            { name: '机核网 Gcores', type: 'xml', url: `${PRIVATE_NODE}/gcores/category/news`, color: 'bg-zinc-900 text-white border-zinc-700' },
-            { name: '3DM 游戏网', type: 'xml', url: `${PRIVATE_NODE}/3dm/news`, color: 'bg-green-50 text-green-600 border-green-200' },
-            { name: 'TapTap 热门', type: 'xml', url: `${PRIVATE_NODE}/taptap/topic/hot`, color: 'bg-teal-50 text-teal-600 border-teal-200' },
-            { name: '游研社', type: 'xml', url: `${PRIVATE_NODE}/yystv/docs`, color: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
-            
-            // 挑战点：大众热搜 (使用多节点自动轮询)
+            // 待攻克的阵地
             { name: 'B站热门', type: 'xml', route: '/bilibili/v/popular/all', color: 'bg-blue-50 text-blue-600 border-blue-200' },
             { name: '微博热搜', type: 'xml', route: '/weibo/search/hot', color: 'bg-red-50 text-red-600 border-red-200' },
-            { name: '抖音热点', type: 'xml', route: '/douyin/hot', color: 'bg-zinc-800 text-white border-gray-700' },
+            { name: '3DM 游戏网', type: 'xml', route: '/3dm/news', color: 'bg-green-50 text-green-600 border-green-200' },
+            { name: '机核网 Gcores', type: 'xml', route: '/gcores/category/news', color: 'bg-zinc-900 text-white border-zinc-700' },
+            { name: 'TapTap 热门', type: 'xml', route: '/taptap/topic/hot', color: 'bg-teal-50 text-teal-600 border-teal-200' },
+            { name: '游研社', type: 'xml', route: '/yystv/docs', color: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
             { name: 'YouTube 热门', type: 'xml', route: '/youtube/trending', color: 'bg-red-50 text-red-700 border-red-200' },
+            { name: '抖音热点', type: 'xml', route: '/douyin/hot', color: 'bg-zinc-800 text-white border-zinc-700' },
             { name: 'Twitter 趋势', type: 'xml', route: '/twitter/trends/23424977', color: 'bg-sky-50 text-sky-500 border-sky-200' },
             { name: '手游那点事', type: 'xml', route: '/zhihu/people/shou-you-na-dian-shi/activities', color: 'bg-blue-50 text-blue-800 border-blue-200' }
         ];
 
-        async function tryFetch(url, type) {
-            const fetchUrl = MY_CF_PROXY + encodeURIComponent(url);
-            const response = await fetch(fetchUrl);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return type === 'json' ? await response.json() : await response.text();
+        // 核心重试函数：节点 A 不行自动切节点 B
+        async function fetchWithRetry(platform) {
+            // 如果是 Reddit 这种带全量 URL 的，直接抓取
+            if (platform.url) {
+                return await fetch(MY_CF_PROXY + encodeURIComponent(platform.url)).then(r => platform.type === 'json' ? r.json() : r.text());
+            }
+
+            // 否则，依次尝试 5 个节点
+            for (let node of RSS_NODES) {
+                try {
+                    const fullUrl = node + platform.route;
+                    const response = await fetch(MY_CF_PROXY + encodeURIComponent(fullUrl));
+                    if (response.ok) return await response.text();
+                } catch (e) {
+                    continue; // 失败了就换下一个
+                }
+            }
+            throw new Error('全线节点繁忙');
         }
 
-        async function fetchAPI(platform) {
+        async function renderCard(platform, index) {
             try {
-                let data;
-                // 如果定义了固定 URL (如 Reddit 和 游戏站)，直接抓取
-                if (platform.url) {
-                    data = await tryFetch(platform.url, platform.type);
-                } 
-                // 如果是通用路由，尝试多个公共节点，直到成功为止
-                else {
-                    let success = false;
-                    for (let node of PUBLIC_NODES) {
-                        try {
-                            data = await tryFetch(node + platform.route, 'xml');
-                            success = true;
-                            break; 
-                        } catch (e) { continue; }
-                    }
-                    if (!success) throw new Error('所有公共节点均繁忙');
-                }
-
+                const data = await fetchWithRetry(platform);
                 let items = [];
+
                 if (platform.type === 'json') {
-                    items = data.data.children.map(child => ({
-                        title: child.data.title,
-                        link: `https://www.reddit.com${child.data.permalink}`
-                    }));
+                    items = data.data.children.map(child => ({ title: child.data.title, link: `https://www.reddit.com${child.data.permalink}` }));
                 } else {
                     const parser = new DOMParser();
                     const xmlDoc = parser.parseFromString(data, "text/xml");
                     const nodes = xmlDoc.querySelectorAll("item");
-                    if (nodes.length === 0) throw new Error('解析内容为空');
+                    if (nodes.length === 0) throw new Error('空内容');
                     for (let i = 0; i < Math.min(nodes.length, 12); i++) {
-                        items.push({
-                            title: nodes[i].querySelector("title")?.textContent || '无标题',
-                            link: nodes[i].querySelector("link")?.textContent || '#'
-                        });
+                        items.push({ title: nodes[i].querySelector("title")?.textContent || '无标题', link: nodes[i].querySelector("link")?.textContent || '#' });
                     }
                 }
 
@@ -107,36 +97,25 @@
                         <ul class="p-3 space-y-2 overflow-y-auto flex-1">
                 `;
                 for (let item of items) {
-                    html += `
-                        <li class="flex items-start border-b border-gray-50 pb-2 last:border-0">
-                            <a href="${item.link}" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline transition-colors line-clamp-2 text-xs leading-tight flex-1">
-                                ${item.title}
-                            </a>
-                        </li>
-                    `;
+                    html += `<li class="flex items-start border-b border-gray-50 pb-2 last:border-0"><a href="${item.link}" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline transition-colors line-clamp-2 text-xs leading-tight flex-1">${item.title}</a></li>`;
                 }
                 html += `</ul></div>`;
-                return html;
+                document.getElementById(`card-${index}`).outerHTML = html;
             } catch (error) {
-                return `
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[400px] flex flex-col items-center justify-center animate-fade-in">
-                        <span class="text-red-400 font-bold text-center mb-2 text-sm">🚫 ${platform.name}</span>
-                        <span class="text-gray-400 text-xs text-center">节点维护中，请稍后刷新</span>
-                    </div>
-                `;
+                document.getElementById(`card-${index}`).innerHTML = `<span class="text-red-400 font-bold text-center mb-2 text-sm">🚫 ${platform.name}</span><span class="text-gray-400 text-xs text-center">节点维护中，请手动刷新</span>`;
             }
         }
 
         async function init() {
             const container = document.getElementById('board-container');
+            // 预生成骨架屏
+            platforms.forEach((p, i) => {
+                container.innerHTML += `<div id="card-${i}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[400px] flex flex-col items-center justify-center"><span class="text-blue-400 font-bold mb-2 animate-pulse text-sm">🌐 通道连接：${p.name}...</span></div>`;
+            });
+            // 顺序加载，降低代理并发压力
             for (let i = 0; i < platforms.length; i++) {
-                container.innerHTML += `<div id="card-${i}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[400px] flex flex-col items-center justify-center"><span class="text-blue-400 font-bold mb-2 animate-pulse text-sm">🌐 正在连线：${platforms[i].name}...</span></div>`;
-            }
-            // 瀑布流加载
-            for (let i = 0; i < platforms.length; i++) {
-                const html = await fetchAPI(platforms[i]);
-                document.getElementById(`card-${i}`).outerHTML = html;
-                await new Promise(r => setTimeout(r, 200)); 
+                await renderCard(platforms[i], i);
+                await new Promise(r => setTimeout(r, 150)); 
             }
         }
 
