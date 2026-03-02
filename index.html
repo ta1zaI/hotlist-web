@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全网极速聚合热榜</title>
+    <title>我的官方聚合热榜</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 6px; }
@@ -13,34 +13,43 @@
 <body class="bg-gray-100 p-4 md:p-8 font-sans">
 
     <div class="max-w-7xl mx-auto">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8">🔥 全网极速热榜</h1>
+        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8">🔥 官方权威热榜</h1>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container">
             <div id="loading" class="col-span-full text-center text-gray-500 font-bold text-xl py-10">
-                正在通过专属缓存接口疾速加载...
+                正在通过榜眼专属密钥连接官方服务器...
             </div>
         </div>
     </div>
 
     <script>
-        // 全部请求你自己的代理路径
+        // 【关键】这里填入你截图里的 Access Key
+        const MY_API_KEY = '657fc3c8b2782918892872580237c11d';
+
+        // 注意：榜眼数据是通过 Node ID 来区分平台的
+        // 下面我先放了几个常见的 ID 示例，你需要去榜眼数据的控制台核对一下具体平台的 ID 是什么
         const platforms = [
-            { name: '微博热搜', url: '/api/weibo', color: 'bg-red-50 text-red-600 border-red-200' },
-            { name: 'B站热搜', url: '/api/bili', color: 'bg-blue-50 text-blue-600 border-blue-200' },
-            { name: '知乎热榜', url: '/api/zhihu', color: 'bg-blue-50 text-blue-800 border-blue-200' },
-            { name: '3DM 游戏', url: '/api/3dm', color: 'bg-orange-50 text-orange-600 border-orange-200' }
+            { name: '微博热搜', url: '/tophub/nodes/KqndgxeLl9', color: 'bg-red-50 text-red-600 border-red-200' },
+            { name: 'B站热搜', url: '/tophub/nodes/74Kvxwokvd', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+            { name: '知乎热榜', url: '/tophub/nodes/mproPpoq6O', color: 'bg-blue-50 text-blue-800 border-blue-200' },
+            { name: '抖音热点', url: '/tophub/nodes/DpQvNABoNE', color: 'bg-gray-800 text-white border-gray-700' }
         ];
 
         async function fetchAPI(platform) {
             try {
-                const response = await fetch(platform.url);
-                if (!response.ok) throw new Error(`HTTP 错误: ${response.status}`);
+                // 请求时，把你的密钥放在 Header 里（这是官方 API 的标准做法）
+                const response = await fetch(platform.url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': MY_API_KEY
+                    }
+                });
                 
-                // DailyHot 返回的是纯净的 JSON 数据
+                if (!response.ok) throw new Error(`HTTP 错误: ${response.status}`);
                 const json = await response.json();
                 
-                // 校验返回的数据格式
-                if (json.code !== 200 || !json.data) throw new Error('接口数据异常');
+                // 榜眼数据的热搜列表通常在 data.items 里
+                if (!json.data || !json.data.items) throw new Error('接口数据格式异常');
 
                 let html = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[500px]">
@@ -48,21 +57,17 @@
                         <ul class="p-4 space-y-3 overflow-y-auto flex-1">
                 `;
 
-                // 提取数据数组
-                const items = json.data;
+                const items = json.data.items;
                 for (let i = 0; i < Math.min(items.length, 15); i++) {
                     const title = items[i].title || '无标题';
                     const link = items[i].url || '#';
-                    const hot = items[i].hot || ''; // 有些平台会返回热度值
                     
                     html += `
-                        <li class="flex flex-col items-start border-b border-gray-50 pb-2 last:border-0">
-                            <div class="flex items-start w-full">
-                                <span class="font-bold text-gray-400 w-6 shrink-0">${i+1}.</span>
-                                <a href="${link}" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline transition-colors line-clamp-2 text-sm leading-tight flex-1">
-                                    ${title}
-                                </a>
-                            </div>
+                        <li class="flex items-start border-b border-gray-50 pb-2 last:border-0">
+                            <span class="font-bold text-gray-400 w-6 shrink-0">${i+1}.</span>
+                            <a href="${link}" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline transition-colors line-clamp-2 text-sm leading-tight">
+                                ${title}
+                            </a>
                         </li>
                     `;
                 }
@@ -73,7 +78,7 @@
                 return `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[500px] flex flex-col items-center justify-center">
                         <span class="text-red-400 font-bold text-center mb-2">🚫 ${platform.name}</span>
-                        <span class="text-gray-500 text-sm">节点抓取超时或维护中</span>
+                        <span class="text-gray-500 text-sm">授权失败或节点ID错误</span>
                     </div>
                 `;
             }
