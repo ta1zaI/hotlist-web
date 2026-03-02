@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的全网聚合热榜</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8 font-sans">
+
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8">🔥 全网实时热榜</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container">
+            <div id="loading" class="col-span-full text-center text-gray-500 font-bold text-xl py-10">
+                正在通过韩小韩高速节点拉取数据...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 替换为不限制本地调试的、更稳定的韩小韩 API
+        const platforms = [
+            { name: '微博热搜', url: 'https://api.vvhan.com/api/hotlist/wbHot', color: 'bg-red-50 text-red-600 border-red-200' },
+            { name: 'B站热搜', url: 'https://api.vvhan.com/api/hotlist/bili', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+            { name: '知乎热榜', url: 'https://api.vvhan.com/api/hotlist/zhihuHot', color: 'bg-blue-50 text-blue-800 border-blue-200' },
+            { name: '抖音热点', url: 'https://api.vvhan.com/api/hotlist/douyinHot', color: 'bg-gray-800 text-white border-gray-700' }
+        ];
+
+        async function fetchAPI(platform) {
+            try {
+                const response = await fetch(platform.url);
+                const json = await response.json();
+                
+                // 校验韩小韩 API 的返回格式
+                if (!json.success || !json.data) throw new Error('接口数据异常');
+
+                let html = `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[500px]">
+                        <h2 class="text-lg font-bold p-4 border-b ${platform.color}">${platform.name}</h2>
+                        <ul class="p-4 space-y-3 overflow-y-auto flex-1">
+                `;
+
+                const items = json.data;
+                for (let i = 0; i < Math.min(items.length, 15); i++) {
+                    const title = items[i].title || '无标题';
+                    // 兼容不同平台可能没有直接链接的情况，如果没有则生成百度搜索链接
+                    const link = items[i].url || items[i].mobilUrl || `https://www.baidu.com/s?wd=${encodeURIComponent(title)}`;
+                    
+                    html += `
+                        <li class="flex items-start">
+                            <span class="font-bold text-gray-400 w-6 shrink-0">${i+1}.</span>
+                            <a href="${link}" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline transition-colors line-clamp-2 text-sm leading-tight">
+                                ${title}
+                            </a>
+                        </li>
+                    `;
+                }
+                html += `</ul></div>`;
+                return html;
+            } catch (error) {
+                console.error(`${platform.name} 抓取失败:`, error);
+                return `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[500px] flex flex-col items-center justify-center">
+                        <span class="text-red-400 font-bold text-center mb-2">🚫 ${platform.name}</span>
+                        <span class="text-gray-500 text-sm">节点抓取失败，请检查网络</span>
+                    </div>
+                `;
+            }
+        }
+
+        async function init() {
+            const container = document.getElementById('board-container');
+            const loading = document.getElementById('loading');
+            
+            let finalHtml = '';
+            const promises = platforms.map(p => fetchAPI(p));
+            const results = await Promise.all(promises);
+            
+            loading.style.display = 'none';
+            results.forEach(html => { finalHtml += html; });
+            container.innerHTML = finalHtml;
+        }
+
+        init();
+    </script>
+</body>
+</html>
