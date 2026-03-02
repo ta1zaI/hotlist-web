@@ -3,115 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Hot Matrix - 全球热点矩阵</title>
+    <title>Global Intelligence - 全球情报站</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide { animation: slideIn 0.5s ease-out forwards; }
     </style>
 </head>
-<body class="bg-slate-900 p-4 md:p-8 font-sans text-slate-200">
+<body class="bg-black p-4 md:p-8 font-sans text-slate-300">
 
-    <div class="max-w-[1400px] mx-auto">
-        <header class="text-center mb-12">
-            <h1 class="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent italic">
-                GLOBAL HOT MATRIX
-            </h1>
-            <p class="text-slate-400 tracking-widest text-sm uppercase font-bold">实时全网热点观察站</p>
+    <div class="max-w-[1500px] mx-auto">
+        <header class="flex flex-col items-center mb-12">
+            <h1 class="text-4xl font-black italic tracking-tighter text-white bg-gradient-to-r from-blue-500 to-emerald-500 bg-clip-text text-transparent">GLOBAL 5 MATRIX</h1>
+            <div class="h-1 w-24 bg-emerald-500 mt-2"></div>
         </header>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container">
-            </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
-        // 【已确认】你的专属 Cloudflare 穿透节点
-        const MY_CF_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
+        // 【已填入】你的专属穿透节点
+        const PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
-        const platforms = [
-            { id: 'reddit', name: 'Reddit (All)', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', color: 'from-orange-500 to-red-600' },
-            { id: 'youtube', name: 'YouTube Trending', type: 'rss', url: 'https://rsshub.app/youtube/trending', color: 'from-red-600 to-red-800' },
-            { id: 'twitter', name: 'Twitter (Global)', type: 'rss', url: 'https://rsshub.app/twitter/trends/1', color: 'from-sky-400 to-blue-600' },
-            { id: 'tiktok', name: 'TikTok Trending', type: 'rss', url: 'https://rsshub.app/tiktok/trending/worldwide', color: 'from-slate-700 to-black' },
-            { id: 'imdb', name: 'IMDb Movies', type: 'rss', url: 'https://rsshub.app/imdb/trending/movie', color: 'from-yellow-400 to-yellow-600' }
+        // 备选节点池（分布式采集，防止单点被封）
+        const NODES = [
+            'https://rsshub.rssforever.com',
+            'https://hub.slarker.me',
+            'https://rss.shab.fun',
+            'https://rsshub.anyant.com'
         ];
 
-        async function fetchAPI(platform) {
+        const platforms = [
+            { name: 'Reddit (All)', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', color: 'border-orange-500' },
+            { name: 'YouTube Trending', type: 'rss', route: '/youtube/trending/cn', color: 'border-red-600' },
+            { name: 'IMDb Trending', type: 'rss', route: '/imdb/trending/movie', color: 'border-yellow-500' },
+            { name: 'Twitter (X)', type: 'rss', route: '/twitter/trends/1', color: 'border-slate-400' },
+            { name: 'TikTok Hot', type: 'rss', route: '/tiktok/trending/worldwide', color: 'border-pink-500' }
+        ];
+
+        async function fetchWithRetry(platform) {
+            // Reddit 走官方 JSON
+            if (platform.type === 'json') {
+                return await fetch(PROXY + encodeURIComponent(platform.url)).then(r => r.json());
+            }
+
+            // 其他 RSS 平台进行多节点轮询
+            for (let node of NODES) {
+                try {
+                    const response = await fetch(PROXY + encodeURIComponent(node + platform.route));
+                    if (response.ok) return await response.text();
+                } catch (e) { continue; }
+            }
+            throw new Error('All nodes failed');
+        }
+
+        async function loadCard(platform, index) {
+            const container = document.getElementById('board-container');
+            container.innerHTML += `<div id="card-${index}" class="h-[550px] bg-slate-900/50 rounded-2xl border ${platform.color} border-opacity-30 p-6 flex flex-col items-center justify-center animate-pulse"><span class="text-xs">Connecting to ${platform.name}...</span></div>`;
+
             try {
-                // 通过你的 CF Worker 强行抓取
-                const response = await fetch(MY_CF_PROXY + encodeURIComponent(platform.url));
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                
+                const data = await fetchWithRetry(platform);
                 let items = [];
 
                 if (platform.type === 'json') {
-                    const data = await response.json();
-                    items = data.data.children.map(c => ({
-                        title: c.data.title,
-                        link: `https://www.reddit.com${c.data.permalink}`
-                    }));
+                    items = data.data.children.map(c => ({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
                 } else {
-                    const text = await response.text();
-                    const parser = new DOMParser();
-                    const xmlDoc = parser.parseFromString(text, "text/xml");
-                    const nodes = xmlDoc.querySelectorAll("item");
-                    
-                    if (nodes.length === 0) throw new Error('节点暂无更新');
-
-                    for (let i = 0; i < Math.min(nodes.length, 12); i++) {
-                        items.push({
-                            title: nodes[i].querySelector("title")?.textContent || 'No Title',
-                            link: nodes[i].querySelector("link")?.textContent || '#'
-                        });
-                    }
+                    const doc = new DOMParser().parseFromString(data, "text/xml");
+                    const nodes = doc.querySelectorAll("item");
+                    nodes.forEach((n, i) => { if(i < 15) items.push({ title: n.querySelector("title")?.textContent, link: n.querySelector("link")?.textContent }); });
                 }
 
                 let html = `
-                    <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col h-[500px] animate-fade-in">
-                        <div class="p-4 bg-gradient-to-br ${platform.color} text-white">
-                            <h2 class="text-lg font-black italic uppercase tracking-tighter">${platform.name}</h2>
+                    <div class="h-[550px] bg-slate-900 border ${platform.color} rounded-2xl flex flex-col overflow-hidden animate-slide shadow-2xl shadow-emerald-500/5">
+                        <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+                            <span class="font-bold text-sm tracking-widest uppercase">${platform.name}</span>
+                            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></div>
                         </div>
-                        <ul class="p-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+                        <ul class="p-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar text-xs">
                 `;
-
-                items.forEach((item, i) => {
-                    html += `
-                        <li class="group border-b border-slate-700/50 pb-3 last:border-0">
-                            <div class="flex items-start gap-3">
-                                <span class="text-slate-500 font-mono text-xs mt-1 font-bold">${(i+1).toString().padStart(2, '0')}</span>
-                                <a href="${item.link}" target="_blank" class="text-slate-200 group-hover:text-blue-400 transition-colors text-sm font-medium leading-snug line-clamp-2">
-                                    ${item.title}
-                                </a>
-                            </div>
-                        </li>
-                    `;
+                items.forEach(item => {
+                    html += `<li class="border-b border-slate-800/50 pb-3 last:border-0 hover:translate-x-1 transition-transform"><a href="${item.link}" target="_blank" class="hover:text-emerald-400 leading-relaxed block">${item.title}</a></li>`;
                 });
-                return html + `</ul></div>`;
-            } catch (error) {
-                console.error(error);
-                return `
-                    <div class="bg-slate-800 rounded-2xl border border-red-900/30 h-[500px] flex flex-col items-center justify-center p-6 text-center">
-                        <div class="w-12 h-12 rounded-full bg-red-900/20 flex items-center justify-center mb-4 text-red-500">!</div>
-                        <h3 class="text-red-400 font-bold mb-2">${platform.name}</h3>
-                        <p class="text-slate-500 text-xs leading-relaxed">连接节点失败，请确认你的浏览器已开启加速器访问全球网络。</p>
-                        <button onclick="location.reload()" class="mt-4 px-4 py-1 border border-slate-600 rounded-full text-xs hover:bg-slate-700 transition-all">重试</button>
-                    </div>
-                `;
+                document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
+            } catch (err) {
+                document.getElementById(`card-${index}`).innerHTML = `<span class="text-red-500 font-bold text-xs uppercase">${platform.name} Offline</span><p class="text-[10px] mt-2 opacity-50 text-center">Firewall blocked all access points.</p>`;
             }
         }
 
         async function init() {
-            const container = document.getElementById('board-container');
-            // 初始化占位
-            container.innerHTML = platforms.map((p, i) => `<div id="card-${i}" class="h-[500px] bg-slate-800 rounded-2xl border border-slate-700 animate-pulse"></div>`).join('');
-            
-            // 顺序加载
             for (let i = 0; i < platforms.length; i++) {
-                const html = await fetchAPI(platforms[i]);
-                document.getElementById(`card-${i}`).outerHTML = html;
-                await new Promise(r => setTimeout(r, 200)); 
+                await loadCard(platforms[i], i);
+                await new Promise(r => setTimeout(r, 400)); // 错峰抓取，防止触发并发拦截
             }
         }
 
