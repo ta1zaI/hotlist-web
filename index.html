@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Global 5 Matrix - Intelligence Feed</title>
+    <title>Global Hot Matrix - Intelligence Feed</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -11,86 +11,77 @@
         .animate-fade { animation: fadeIn 0.4s ease-out forwards; }
     </style>
 </head>
-<body class="bg-black p-4 md:p-8 font-mono text-emerald-500">
+<body class="bg-[#050505] p-4 md:p-8 font-mono text-emerald-500">
 
     <div class="max-w-[1600px] mx-auto">
         <header class="mb-10 border-b border-emerald-900/30 pb-6">
-            <h1 class="text-3xl font-black tracking-tighter uppercase italic text-white">Global Hot 5 Matrix</h1>
-            <p class="text-[9px] text-emerald-800 mt-1 uppercase">Node: Billowing-Salad // Status: Multi-Mirror Enabled</p>
+            <h1 class="text-3xl font-black tracking-tighter uppercase italic text-white">Global 5 Intelligence</h1>
+            <p class="text-[9px] text-emerald-800 mt-1 uppercase">Node: Billowing-Salad // System: Secure-Link v3.0</p>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
-        // 你的金钥匙
+        // 【核心】你的专属金钥匙
         const PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
-        // 备选节点池：一个不通，秒换下一个
-        const MIRRORS = [
-            'https://hub.slarker.me',
-            'https://rsshub.rssforever.com',
-            'https://rss.shab.fun',
-            'https://rsshub.app'
-        ];
-
         const platforms = [
-            { name: 'Reddit /r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', color: 'border-orange-600' },
-            { name: 'YouTube Trending', type: 'rss', route: '/youtube/trending/en', color: 'border-red-600' },
-            { name: 'IMDb Trending', type: 'rss', route: '/imdb/trending/movie', color: 'border-yellow-600' },
-            { name: 'X / Twitter', type: 'rss', route: '/twitter/trends/1', color: 'border-white' },
-            { name: 'TikTok Trend', type: 'rss', route: '/tiktok/trending/worldwide', color: 'border-pink-600' }
+            { id: 'reddit', name: 'Reddit /r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', color: 'border-orange-600' },
+            { id: 'youtube', name: 'YouTube Trending', type: 'invidious', url: 'https://vid.priv.au/api/v1/trending', color: 'border-red-600' },
+            { id: 'imdb', name: 'IMDb Movies', type: 'rss', url: 'https://www.imdb.com/list/ls004127443/rss', color: 'border-yellow-600' },
+            { id: 'twitter', name: 'X / Twitter', type: 'vvhan', url: 'https://api.vvhan.com/api/hotlist?type=twitter', color: 'border-white' },
+            { id: 'tiktok', name: 'TikTok Trend', type: 'vvhan', url: 'https://api.vvhan.com/api/hotlist?type=douyin', color: 'border-pink-600' }
         ];
 
-        async function fetchWithRetry(platform, mirrorIndex = 0) {
-            const url = platform.url || (MIRRORS[mirrorIndex] + platform.route);
-            const response = await fetch(PROXY + encodeURIComponent(url));
-            if (!response.ok) {
-                if (!platform.url && mirrorIndex < MIRRORS.length - 1) {
-                    return fetchWithRetry(platform, mirrorIndex + 1);
-                }
-                throw new Error('Connection failed');
+        async function fetchAPI(platform) {
+            const response = await fetch(PROXY + encodeURIComponent(platform.url));
+            if (!response.ok) throw new Error('OFFLINE');
+            const data = await response.json();
+            
+            let items = [];
+            if (platform.type === 'json') {
+                items = data.data.children.map(c => ({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
+            } else if (platform.type === 'invidious') {
+                items = data.map(v => ({ title: v.title, link: `https://www.youtube.com/watch?v=${v.videoId}` }));
+            } else if (platform.type === 'vvhan') {
+                // 采用最稳的 vvhan 聚合源
+                items = data.data.map(i => ({ title: i.title, link: i.url }));
+            } else if (platform.type === 'rss') {
+                const rssRes = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(platform.url)}`);
+                const rssData = await rssRes.json();
+                items = rssData.items.map(i => ({ title: i.title, link: i.link }));
             }
-            return platform.type === 'json' ? response.json() : response.text();
+            return items;
         }
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            container.innerHTML += `<div id="card-${index}" class="h-[550px] bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-center animate-pulse text-[10px] uppercase tracking-tighter">Syncing_${platform.name}...</div>`;
+            container.innerHTML += `<div id="card-${index}" class="h-[550px] bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-center animate-pulse"><span class="text-[9px] uppercase">Connecting_${platform.name}...</span></div>`;
 
             try {
-                const data = await fetchWithRetry(platform);
-                let items = [];
-
-                if (platform.type === 'json') {
-                    items = data.data.children.map(c => ({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
-                } else {
-                    const doc = new DOMParser().parseFromString(data, "text/xml");
-                    const nodes = doc.querySelectorAll("item");
-                    nodes.forEach((n, i) => { if(i < 15) items.push({ title: n.querySelector("title")?.textContent, link: n.querySelector("link")?.textContent }); });
-                }
-
+                const items = await fetchAPI(platform);
                 let html = `
                     <div class="h-[550px] bg-zinc-900/80 border-t-2 ${platform.color} rounded-xl flex flex-col overflow-hidden shadow-2xl animate-fade">
                         <div class="p-4 bg-black/40 flex justify-between items-center border-b border-white/5">
-                            <span class="font-bold text-[10px] uppercase">${platform.name}</span>
+                            <span class="font-bold text-[10px] uppercase text-white">${platform.name}</span>
                             <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
                         </div>
-                        <ul class="p-4 space-y-4 overflow-y-auto flex-1 text-[11px] leading-relaxed custom-scrollbar">
+                        <ul class="p-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar text-[11px] leading-relaxed">
                 `;
-                items.forEach(item => {
+                items.slice(0, 15).forEach(item => {
                     html += `<li class="border-b border-white/5 pb-2 hover:bg-white/5 transition-all"><a href="${item.link}" target="_blank" class="text-zinc-400 hover:text-white block"> > ${item.title}</a></li>`;
                 });
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center"><span class="text-red-900 font-bold text-[10px] uppercase">[ERROR]</span><p class="text-[9px] text-zinc-600 mt-2 italic font-mono">All mirrors blocked. Re-syncing recommended.</p></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center"><span class="text-red-900 font-bold text-[10px] uppercase">[DENIED]</span><p class="text-[9px] text-zinc-600 mt-2 font-mono leading-tight">Secure channel blocked by origin.</p></div>`;
             }
         }
 
         async function init() {
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
-                await new Promise(r => setTimeout(r, 400)); // 错峰抓取，避开并发限流
+                await new Promise(r => setTimeout(r, 400)); 
             }
         }
         init();
