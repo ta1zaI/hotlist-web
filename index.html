@@ -3,84 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GLOBAL 5 MATRIX</title>
+    <title>Global Hot 5 Matrix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
-        .scan-line { position: absolute; width: 100%; height: 2px; background: rgba(34, 197, 94, 0.2); animation: scan 3s linear infinite; }
+        @keyframes pulse-border { 0% { border-color: rgba(16, 185, 129, 0.2); } 50% { border-color: rgba(16, 185, 129, 0.8); } 100% { border-color: rgba(16, 185, 129, 0.2); } }
+        .loading-pulse { animation: pulse-border 2s infinite; }
     </style>
 </head>
-<body class="bg-slate-950 p-4 md:p-8 font-mono text-emerald-500">
+<body class="bg-slate-950 p-4 md:p-8 font-mono text-slate-300">
 
-    <div class="max-w-[1600px] mx-auto relative">
-        <div class="scan-line"></div>
-        <header class="mb-10 border-b border-emerald-900/50 pb-6">
-            <h1 class="text-3xl font-black tracking-[0.2em] uppercase">Global Intel Matrix</h1>
-            <p class="text-[10px] text-emerald-700 mt-2 italic">Status: System Online // Data Encrypted</p>
+    <div class="max-w-[1600px] mx-auto">
+        <header class="mb-10 border-b border-slate-800 pb-6 flex justify-between items-end">
+            <div>
+                <h1 class="text-3xl font-black italic tracking-tighter text-white uppercase">Global 5 Matrix</h1>
+                <p class="text-[10px] text-emerald-500 mt-1 uppercase tracking-widest">Real-time Intelligence Feed</p>
+            </div>
+            <div class="text-[10px] text-slate-500">PROXY: billowing-salad-1c9b // ACTIVE</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
-        // 【已填入】你的专属代理
+        // 【保持不动】你的专属代理
         const PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
-        const platforms = [
-            { name: 'Reddit/r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', color: 'border-orange-500' },
-            { name: 'IMDb Trending', type: 'rss', url: 'https://rsshub.rssforever.com/imdb/trending/movie', color: 'border-yellow-500' },
-            { name: 'X/Twitter', type: 'rss', url: 'https://hub.slarker.me/twitter/trends/1', color: 'border-slate-100' },
-            { name: 'TikTok Trend', type: 'rss', url: 'https://rss.shab.fun/tiktok/trending/worldwide', color: 'border-pink-500' },
-            { name: 'YouTube Hot', type: 'rss', url: 'https://rsshub.anyant.com/youtube/trending/en', color: 'border-red-600' }
+        // 备用节点池：如果一个挂了，自动跳下一个 (避开已知的 530 故障点)
+        const NODES = [
+            'https://rsshub.rssforever.com',
+            'https://hub.slarker.me',
+            'https://rss.shab.fun',
+            'https://rsshub.anyant.com'
         ];
+
+        const platforms = [
+            { id: 'reddit', name: 'Reddit /r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', color: 'border-orange-500' },
+            { id: 'youtube', name: 'YouTube Trending', type: 'rss', route: '/youtube/trending/en', color: 'border-red-600' },
+            { id: 'imdb', name: 'IMDb Movies', type: 'rss', route: '/imdb/trending/movie', color: 'border-yellow-500' },
+            { id: 'twitter', name: 'X / Twitter', type: 'rss', route: '/twitter/trends/1', color: 'border-slate-100' },
+            { id: 'tiktok', name: 'TikTok Trend', type: 'rss', route: '/tiktok/trending/worldwide', color: 'border-pink-500' }
+        ];
+
+        async function fetchWithRetry(platform) {
+            // Reddit 走官方直连 JSON
+            if (platform.url) {
+                const r = await fetch(PROXY + encodeURIComponent(platform.url));
+                if (!r.ok) throw new Error('OFFLINE');
+                return await r.json();
+            }
+
+            // 其余平台尝试轮询所有节点
+            for (let node of NODES) {
+                try {
+                    const r = await fetch(PROXY + encodeURIComponent(node + platform.route));
+                    if (r.ok) return await r.text();
+                } catch (e) { continue; }
+            }
+            throw new Error('ALL_NODES_FAILED');
+        }
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            container.innerHTML += `<div id="card-${index}" class="h-[550px] bg-slate-900/30 border border-emerald-900/30 p-6 flex items-center justify-center"><span class="animate-pulse text-xs tracking-widest">>> FETCHING ${platform.name}...</span></div>`;
+            container.innerHTML += `<div id="card-${index}" class="h-[550px] bg-slate-900/50 border border-slate-800 rounded-2xl flex items-center justify-center loading-pulse"><span class="text-[10px] animate-pulse">SYNCING ${platform.name}...</span></div>`;
 
             try {
-                // 强制通过你的 CF 代理
-                const fetchUrl = PROXY + encodeURIComponent(platform.url);
-                const response = await fetch(fetchUrl);
-                if (!response.ok) throw new Error('CONNECTION_LOST');
-                
+                const data = await fetchWithRetry(platform);
                 let items = [];
+
                 if (platform.type === 'json') {
-                    const data = await response.json();
                     items = data.data.children.map(c => ({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
                 } else {
-                    const text = await response.text();
-                    const doc = new DOMParser().parseFromString(text, "text/xml");
+                    const doc = new DOMParser().parseFromString(data, "text/xml");
                     const nodes = doc.querySelectorAll("item");
-                    if (nodes.length === 0) throw new Error('EMPTY_DATA');
+                    if (nodes.length === 0) throw new Error('EMPTY');
                     nodes.forEach((n, i) => { if(i < 15) items.push({ title: n.querySelector("title")?.textContent, link: n.querySelector("link")?.textContent }); });
                 }
 
                 let html = `
-                    <div class="h-[550px] bg-slate-900/80 border-t-2 ${platform.color} flex flex-col overflow-hidden shadow-2xl">
-                        <div class="p-4 bg-slate-800/50 flex justify-between items-center">
-                            <span class="font-bold text-[10px] tracking-tighter uppercase">${platform.name}</span>
-                            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+                    <div class="h-[550px] bg-slate-900 border-t-4 ${platform.color} rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-all hover:scale-[1.02]">
+                        <div class="p-4 bg-slate-800/40 flex justify-between items-center border-b border-slate-800">
+                            <span class="font-bold text-xs tracking-tighter uppercase text-white">${platform.name}</span>
+                            <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
                         </div>
-                        <ul class="p-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar text-[11px] leading-relaxed">
+                        <ul class="p-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
                 `;
                 items.forEach(item => {
-                    html += `<li class="border-b border-emerald-900/20 pb-2 hover:bg-emerald-950/20 transition-all"><a href="${item.link}" target="_blank" class="hover:text-white block"> ${item.title}</a></li>`;
+                    html += `<li class="border-b border-slate-800/50 pb-3 last:border-0 hover:pl-1 transition-all"><a href="${item.link}" target="_blank" class="text-[11px] leading-relaxed hover:text-emerald-400 block"> ${item.title}</a></li>`;
                 });
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
-
             } catch (err) {
-                document.getElementById(`card-${index}`).innerHTML = `<div class="text-center p-4"><span class="text-red-500 font-bold text-xs uppercase">[ACCESS_DENIED]</span><p class="text-[9px] text-slate-600 mt-2">${platform.name} Node Offline</p></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="text-center p-6"><span class="text-red-500 font-bold text-xs uppercase">[ERROR]</span><p class="text-[9px] text-slate-500 mt-2">${platform.name} is currently blocked. Try VPN.</p></div>`;
             }
         }
 
         async function init() {
-            // 采用“一个一个来”的加载策略，绝不给服务器压力
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
-                await new Promise(r => setTimeout(r, 500)); 
+                await new Promise(r => setTimeout(r, 400)); // 错峰抓取，防止并发限流
             }
         }
         init();
