@@ -1,5 +1,8 @@
 {
   "rewrites": [
-    { "source": "/tophub/:path*", "destination": "https://api.tophubdata.com/:path*" }
+    { "source": "/api/weibo", "destination": "https://weibo.com/ajax/side/hotSearch" },
+    { "source": "/api/bili", "destination": "https://api.bilibili.com/x/web-interface/ranking/v2?rid=0&type=all" },
+    { "source": "/api/zhihu", "destination": "https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total?limit=15&desktop=true" },
+    { "source": "/api/baidu", "destination": "https://top.baidu.com/api/board?platform=pc&tab=realtime" }
   ]
 }
