@@ -8,6 +8,9 @@
     <style>
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        /* 添加一个优雅的淡入动画 */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
     </style>
 </head>
 <body class="bg-gray-100 p-4 md:p-6 font-sans">
@@ -22,57 +25,62 @@
     </div>
 
     <script>
+        // 我们改用高配的纯净 RSS 节点，并直接在前端绕过跨域！
+        const RSS_BASE = 'https://rsshub.run';
+
         const platforms = [
             // 大众平台
-            { name: 'B站热门', type: 'xml', url: '/api/bili', color: 'bg-blue-50 text-blue-600 border-blue-200' },
-            { name: '微博热搜', type: 'xml', url: '/api/weibo', color: 'bg-red-50 text-red-600 border-red-200' },
-            { name: '抖音热点', type: 'xml', url: '/api/douyin', color: 'bg-gray-800 text-white border-gray-700' },
+            { name: 'B站热门', type: 'rss', url: `${RSS_BASE}/bilibili/v/popular/all`, color: 'bg-blue-50 text-blue-600 border-blue-200' },
+            { name: '微博热搜', type: 'rss', url: `${RSS_BASE}/weibo/search/hot`, color: 'bg-red-50 text-red-600 border-red-200' },
+            { name: '抖音热点', type: 'rss', url: `${RSS_BASE}/douyin/hot`, color: 'bg-gray-800 text-white border-gray-700' },
             
-            // 海外站点 (Reddit 用特殊代理绕过拦截)
-            { name: 'Reddit (Gaming)', type: 'json', url: 'https://api.allorigins.win/raw?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fgaming%2Fhot.json', color: 'bg-orange-50 text-orange-600 border-orange-200' },
-            { name: 'YouTube 热门', type: 'xml', url: '/api/youtube', color: 'bg-red-50 text-red-700 border-red-200' },
-            { name: 'Twitter 趋势', type: 'xml', url: '/api/twitter', color: 'bg-sky-50 text-sky-500 border-sky-200' },
+            // 海外站点
+            { name: 'Reddit (Gaming)', type: 'reddit', url: 'https://www.reddit.com/r/gaming/hot.json', color: 'bg-orange-50 text-orange-600 border-orange-200' },
+            { name: 'YouTube 热门', type: 'rss', url: `${RSS_BASE}/youtube/trending`, color: 'bg-red-50 text-red-700 border-red-200' },
+            { name: 'Twitter 趋势', type: 'rss', url: `${RSS_BASE}/twitter/trends/23424977`, color: 'bg-sky-50 text-sky-500 border-sky-200' },
 
             // 国内游戏门户 
-            { name: '3DM 游戏网', type: 'xml', url: '/api/3dm', color: 'bg-green-50 text-green-600 border-green-200' },
-            { name: 'TapTap 热门', type: 'xml', url: '/api/taptap', color: 'bg-teal-50 text-teal-600 border-teal-200' },
-            { name: '游研社', type: 'xml', url: '/api/yystv', color: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
+            { name: '3DM 游戏网', type: 'rss', url: `${RSS_BASE}/3dm/news`, color: 'bg-green-50 text-green-600 border-green-200' },
+            { name: 'TapTap 热门', type: 'rss', url: `${RSS_BASE}/taptap/topic/hot`, color: 'bg-teal-50 text-teal-600 border-teal-200' },
+            { name: '游研社', type: 'rss', url: `${RSS_BASE}/yystv/docs`, color: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
             
             // 深度垂类
-            { name: '机核网 Gcores', type: 'xml', url: '/api/gcores', color: 'bg-zinc-800 text-white border-zinc-700' },
-            { name: '游民星空', type: 'xml', url: '/api/gamersky', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-            { name: '手游那点事', type: 'xml', url: '/api/shouyou', color: 'bg-blue-50 text-blue-800 border-blue-200' }
+            { name: '机核网 Gcores', type: 'rss', url: `${RSS_BASE}/gcores/category/news`, color: 'bg-zinc-800 text-white border-zinc-700' },
+            { name: '游民星空', type: 'rss', url: `${RSS_BASE}/gamersky/news`, color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+            { name: '手游那点事', type: 'rss', url: `${RSS_BASE}/zhihu/people/shou-you-na-dian-shi/activities`, color: 'bg-blue-50 text-blue-800 border-blue-200' }
         ];
 
         async function fetchAPI(platform) {
             try {
-                const response = await fetch(platform.url);
-                if (!response.ok) throw new Error(`源站拒绝响应 (${response.status})`);
-                
                 let items = [];
 
-                if (platform.type === 'json') {
+                if (platform.type === 'reddit') {
+                    // Reddit 使用强大的 corsproxy.io 强行穿透
+                    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(platform.url)}`;
+                    const response = await fetch(proxyUrl);
+                    if (!response.ok) throw new Error('跨域穿透失败');
                     const data = await response.json();
+                    
                     if (!data.data || !data.data.children) throw new Error('数据结构异常');
                     items = data.data.children.map(child => ({
                         title: child.data.title,
                         link: `https://www.reddit.com${child.data.permalink}`
                     }));
                 } else {
-                    const text = await response.text();
-                    const parser = new DOMParser();
-                    const xmlDoc = parser.parseFromString(text, "text/xml");
-                    const nodes = xmlDoc.querySelectorAll("item");
+                    // 其他节点直接使用 rss2json 官方转换器，自带极速缓存，彻底告别 10 秒超时！
+                    const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(platform.url)}`;
+                    const response = await fetch(rss2jsonUrl);
+                    const data = await response.json();
                     
-                    if (nodes.length === 0) throw new Error('节点暂无更新');
-
-                    for (let i = 0; i < Math.min(nodes.length, 12); i++) {
-                        items.push({
-                            title: nodes[i].querySelector("title") ? nodes[i].querySelector("title").textContent : '无标题',
-                            link: nodes[i].querySelector("link") ? nodes[i].querySelector("link").textContent : '#'
-                        });
-                    }
+                    if (data.status !== 'ok') throw new Error('源站抓取限制或暂无更新');
+                    
+                    items = data.items.map(item => ({
+                        title: item.title,
+                        link: item.link
+                    }));
                 }
+
+                if (items.length === 0) throw new Error('暂无数据');
 
                 let html = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[400px] animate-fade-in">
@@ -80,7 +88,7 @@
                         <ul class="p-3 space-y-2 overflow-y-auto flex-1">
                 `;
 
-                for (let i = 0; i < items.length; i++) {
+                for (let i = 0; i < Math.min(items.length, 12); i++) {
                     html += `
                         <li class="flex items-start border-b border-gray-50 pb-2 last:border-0">
                             <span class="font-bold text-gray-400 w-5 shrink-0 text-sm">${i+1}.</span>
@@ -94,10 +102,10 @@
                 return html;
             } catch (error) {
                 console.error(`${platform.name} 抓取失败:`, error);
-                let errorMsg = platform.name.includes('Twitter') ? '马斯克已封锁获取途径' : error.message;
+                let errorMsg = platform.name.includes('Twitter') ? '马斯克已封锁免费接口' : error.message;
 
                 return `
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[400px] flex flex-col items-center justify-center">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[400px] flex flex-col items-center justify-center animate-fade-in">
                         <span class="text-red-400 font-bold text-center mb-2 text-sm">🚫 ${platform.name}</span>
                         <span class="text-gray-400 text-xs text-center">${errorMsg}</span>
                     </div>
@@ -108,27 +116,4 @@
         async function init() {
             const container = document.getElementById('board-container');
             
-            // 1. 先在页面上画出 12 个“正在加载”的框框
-            for (let i = 0; i < platforms.length; i++) {
-                container.innerHTML += `
-                    <div id="card-${i}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-[400px] flex flex-col items-center justify-center">
-                        <span class="text-blue-400 font-bold mb-2 animate-pulse">⏳ 正在排队连线 ${platforms[i].name}...</span>
-                    </div>
-                `;
-            }
-
-            // 2. 瀑布流排队抓取：一个一个来，绝不拥挤！
-            for (let i = 0; i < platforms.length; i++) {
-                // 抓到一个，就替换掉对应的那个“正在加载”框
-                const html = await fetchAPI(platforms[i]);
-                document.getElementById(`card-${i}`).outerHTML = html;
-                
-                // 【核心绝招】每次抓完休息 0.8 秒，保护你的免费服务器不崩溃！
-                await new Promise(resolve => setTimeout(resolve, 800));
-            }
-        }
-
-        init();
-    </script>
-</body>
-</html>
+            // 先画出
