@@ -1,8 +1,8 @@
 {
   "rewrites": [
-    { "source": "/api/weibo", "destination": "https://api.vvhan.com/api/hotlist/wbHot" },
-    { "source": "/api/bili", "destination": "https://api.vvhan.com/api/hotlist/bili" },
-    { "source": "/api/zhihu", "destination": "https://api.vvhan.com/api/hotlist/zhihuHot" },
-    { "source": "/api/douyin", "destination": "https://api.vvhan.com/api/hotlist/douyinHot" }
+    { "source": "/api/weibo", "destination": "https://rsshub.app/weibo/search/hot" },
+    { "source": "/api/bili", "destination": "https://rsshub.app/bilibili/hot-search" },
+    { "source": "/api/gcores", "destination": "https://rsshub.app/gcores/category/news" },
+    { "source": "/api/gamersky", "destination": "https://rsshub.app/gamersky/news" }
   ]
 }
