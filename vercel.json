@@ -1,8 +1,8 @@
 {
   "rewrites": [
-    { "source": "/api/weibo", "destination": "https://tenapi.cn/v2/weibohot" },
-    { "source": "/api/bili", "destination": "https://tenapi.cn/v2/bilihot" },
-    { "source": "/api/zhihu", "destination": "https://tenapi.cn/v2/zhihuhot" },
-    { "source": "/api/douyin", "destination": "https://tenapi.cn/v2/douyinhot" }
+    { "source": "/api/weibo", "destination": "https://api.vvhan.com/api/hotlist/wbHot" },
+    { "source": "/api/bili", "destination": "https://api.vvhan.com/api/hotlist/bili" },
+    { "source": "/api/zhihu", "destination": "https://api.vvhan.com/api/hotlist/zhihuHot" },
+    { "source": "/api/douyin", "destination": "https://api.vvhan.com/api/hotlist/douyinHot" }
   ]
 }
