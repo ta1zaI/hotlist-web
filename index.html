@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Omni-Matrix // SCRAPER API EDITION</title>
+    <title>Omni-Matrix // HEADLESS ENGINE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -20,10 +20,10 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Omni-Matrix 4</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // RESIDENTIAL SCRAPE ENGINE ENABLED
+                    <span class="animate-blink text-red-500">● LIVE</span> // RESIDENTIAL HEADLESS SCRAPER
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">TIKTOK WAF BYPASS ACTIVE</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">TIKTOK WAF BYPASS: PREMIUM ACTIVE</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container"></div>
@@ -31,7 +31,7 @@
 
     <script>
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
-        // 已注入专属家庭宽带节点密钥
+        // 你的专属 ScraperAPI 金钥匙
         const SCRAPER_API_KEY = '55cc9fdf6a593f6134c563837a4ace68'; 
 
         const platforms = [
@@ -54,7 +54,7 @@
 
             switch (platformId) {
                 // ==========================================
-                // 【稳如磐石区】：Reddit, Twitter, IMDb
+                // 【稳如磐石区】：Reddit, Twitter, IMDb 保持不变
                 // ==========================================
                 case 'reddit':
                     raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15');
@@ -80,42 +80,55 @@
                     break;
 
                 // ==========================================
-                // 【顶级突围区】：TikTok 官方网页硬解构
+                // 【终极突围区】：TikTok 真实浏览器级渲染
                 // ==========================================
                 case 'tiktok':
-                    // 目标锁定：官方商业创意中心前端网页
-                    const tkTargetUrl = 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/zh?period=7&region=US';
-                    
-                    // 使用 ScraperAPI 发起物理节点请求
-                    const scraperUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(tkTargetUrl)}&render=false`;
-                    
-                    const res = await fetch(scraperUrl, { cache: 'no-store' });
-                    if (!res.ok) throw new Error("ScraperAPI blocked or failed");
-                    
-                    // 拿到网页纯 HTML 源码
-                    raw = await res.text();
-                    
                     let tags = [];
-                    // 使用正则在源码中猎杀热门话题
-                    const regexList = [/"hashtag_name":"([^"]+)"/g, /"keyword":"([^"]+)"/g];
                     
-                    for (let regex of regexList) {
+                    // 战术 A：优先尝试使用 Premium 住宅 IP 直连官方隐藏 JSON 接口 (速度快)
+                    const tkApiUrl = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/hashtag/list?period=7&page=1&limit=15&country_code=US';
+                    const fastScraperUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(tkApiUrl)}&premium=true`;
+                    
+                    try {
+                        const fastRes = await fetch(fastScraperUrl, { cache: 'no-store' });
+                        const fastJson = await fastRes.json();
+                        if (fastJson && fastJson.data && fastJson.data.list) {
+                            fastJson.data.list.forEach(tag => tags.push(tag.hashtag_name));
+                        }
+                    } catch (e) {
+                        console.warn("Fast API blocked, engaging Headless Browser...");
+                    }
+
+                    // 战术 B：如果 JSON API 被墙，启动真实的浏览器去“看”那个网页 (速度稍慢，但不可阻挡)
+                    if (tags.length === 0) {
+                        const tkTargetUrl = 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/zh?period=7&region=US';
+                        // 开启 render=true，强制服务器等待 JS 加载出数据
+                        const hardScraperUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(tkTargetUrl)}&render=true&premium=true`;
+                        
+                        const hardRes = await fetch(hardScraperUrl, { cache: 'no-store' });
+                        if (!hardRes.ok) throw new Error("Headless browser failed");
+                        raw = await hardRes.text();
+                        
+                        // 把渲染完毕的 HTML 变成纯文本
+                        const docTk = parser.parseFromString(raw, "text/html");
+                        const pageText = docTk.body ? docTk.body.textContent : raw;
+                        
+                        // 用正则匹配视觉上显示的 "# olympics" 或 "#hockey"
+                        const visualRegex = /#\s*([a-zA-Z0-9_]+)/g;
                         let match;
-                        while ((match = regex.exec(raw)) !== null && tags.length < 15) {
-                            // 解码可能存在的中文/特殊符号
-                            let tagStr = match[1].replace(/\\u[\dA-F]{4}/gi, (m) => String.fromCharCode(parseInt(m.replace(/\\u/g, ''), 16)));
+                        while ((match = visualRegex.exec(pageText)) !== null) {
+                            let tagStr = match[1].toLowerCase();
                             if(!tags.includes(tagStr) && tagStr.length > 1) {
                                 tags.push(tagStr);
                             }
                         }
-                        if (tags.length > 0) break;
                     }
 
                     if (tags.length === 0) {
-                        throw new Error("Target Structure Mutated / Scraper Blocked");
+                        throw new Error("WAF Blocked or Timeout");
                     }
 
-                    // 组装成必能打开的话题链接
+                    // 组装结果
                     tags.slice(0, 15).forEach(tag => {
                         items.push({ 
                             title: '#' + tag, 
@@ -131,7 +144,9 @@
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Fetching_${platform.name}...</span></div>`;
+            // 如果是 TikTok，给一个较长的等待提示，因为真实浏览器渲染需要几秒钟
+            const loadingText = platform.id === 'tiktok' ? `Bypassing_WAF_${platform.name}...` : `Fetching_${platform.name}...`;
+            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">${loadingText}</span></div>`;
 
             try {
                 const items = await getRealTimeData(platform.id);
