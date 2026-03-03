@@ -20,7 +20,7 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Global 5 Hotlist</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // SECURE SCRAPING ENGINE
+                    <span class="animate-blink text-red-500">● LIVE</span> // HYBRID SCRAPING ENGINE
                 </p>
             </div>
             <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">PROXY: BILLOWING-SALAD (ACTIVE)</div>
@@ -35,16 +35,34 @@
         const platforms = [
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-100' },
-            { id: 'youtube', name: 'YouTube Trend (US)', color: 'border-red-600' },
+            { id: 'youtube', name: 'YouTube Trend', color: 'border-red-600' },
             { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-500' },
-            { id: 'tiktok', name: 'TikTok Trend (7D)', color: 'border-pink-500' }
+            { id: 'tiktok', name: 'TikTok Trend', color: 'border-pink-500' }
         ];
 
-        async function fetchRawData(url) {
-            // 坚决不加任何额外参数，防止目标服务器报错 404
-            const response = await fetch(MY_PROXY + encodeURIComponent(url), { cache: 'no-store' });
+        // 基础抓取
+        async function fetchRawData(url, useTimestamp = false) {
+            let targetUrl = url;
+            if (useTimestamp) {
+                targetUrl += (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+            }
+            const response = await fetch(MY_PROXY + encodeURIComponent(targetUrl), { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.text();
+        }
+
+        // 镜像轮询引擎：专治 403 和 503
+        async function fetchWithMirrors(routes) {
+            for (let route of routes) {
+                try {
+                    const response = await fetch(MY_PROXY + encodeURIComponent(route), { cache: 'no-store' });
+                    if (response.ok) return await response.text();
+                } catch (e) {
+                    console.warn(`Node failed: ${route}, switching...`);
+                    continue;
+                }
+            }
+            throw new Error("All mirror nodes failed");
         }
 
         async function getRealTimeData(platformId) {
@@ -54,14 +72,16 @@
 
             switch (platformId) {
                 case 'reddit':
-                    raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15');
+                    // 【已成功：保留】
+                    raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15', true);
                     JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
                         items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
                     });
                     break;
 
                 case 'twitter':
-                    raw = await fetchRawData('https://trends24.in/united-states/');
+                    // 【已成功：保留】
+                    raw = await fetchRawData('https://trends24.in/united-states/', true);
                     const docTwitter = parser.parseFromString(raw, "text/html");
                     const tNodes = docTwitter.querySelectorAll('.trend-card__list li a');
                     for(let i=0; i<Math.min(tNodes.length, 15); i++) {
@@ -70,53 +90,60 @@
                     break;
 
                 case 'youtube':
-                    raw = await fetchRawData('https://yt.lemnoslife.com/videos?part=snippet&chart=mostPopular&regionCode=US&maxResults=15');
-                    JSON.parse(raw).items.forEach(v => {
-                        items.push({ title: v.snippet.title, link: `https://www.youtube.com/watch?v=${v.id}` });
+                    // 【修复：镜像轮询】找存活的 RSSHub 节点拿 YouTube US 热门
+                    raw = await fetchWithMirrors([
+                        'https://rsshub.rssforever.com/youtube/trending/US',
+                        'https://hub.slarker.me/youtube/trending/US',
+                        'https://rsshub.app/youtube/trending/US'
+                    ]);
+                    const docYt = parser.parseFromString(raw, "text/xml");
+                    docYt.querySelectorAll("item").forEach((n, i) => { 
+                        if(i < 15) items.push({ title: n.querySelector("title")?.textContent, link: n.querySelector("link")?.textContent }); 
                     });
                     break;
 
                 case 'imdb':
-                    raw = await fetchRawData('https://www.imdb.com/chart/moviemeter/');
-                    const docImdb = parser.parseFromString(raw, "text/html");
-                    const mNodes = docImdb.querySelectorAll('.ipc-title__text');
-                    mNodes.forEach(node => {
-                        let text = node.textContent.trim();
-                        if (/^\d+\./.test(text) && items.length < 15) {
-                            let aTag = node.closest('a');
-                            let link = aTag ? `https://www.imdb.com${aTag.getAttribute('href')}` : '#';
-                            items.push({ title: text.replace(/^\d+\.\s*/, ''), link: link });
-                        }
+                    // 【修复：镜像轮询】找存活的 RSSHub 节点拿 IMDb 热门
+                    raw = await fetchWithMirrors([
+                        'https://rsshub.app/imdb/trending/movie',
+                        'https://rsshub.rssforever.com/imdb/trending/movie',
+                        'https://hub.slarker.me/imdb/trending/movie'
+                    ]);
+                    const docImdb = parser.parseFromString(raw, "text/xml");
+                    docImdb.querySelectorAll("item").forEach((n, i) => { 
+                        if(i < 15) items.push({ title: n.querySelector("title")?.textContent, link: n.querySelector("link")?.textContent }); 
                     });
                     break;
 
                 case 'tiktok':
-                    // 锁定你截图中的官方近7天热门话题链接 (US区域)
-                    raw = await fetchRawData('https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/zh?period=7&region=US');
+                    // 【终极绕道：基因重组】直接抓 50 个热门视频，强行提取它们的 hashtag！
+                    raw = await fetchRawData('https://www.tikwm.com/api/feed/list?region=US&count=50', false);
+                    const vList = JSON.parse(raw).data;
+                    let tagCounts = {};
                     
-                    let tags = [];
-                    // 正则暴力解剖：从 React 源码底层的 JSON 中硬抠出话题名
-                    const regexList = [/"hashtag_name":"([^"]+)"/g, /"keyword":"([^"]+)"/g];
-                    
-                    for (let regex of regexList) {
-                        let match;
-                        while ((match = regex.exec(raw)) !== null && tags.length < 15) {
-                            // 处理可能存在的转义字符，并去重
-                            let tag = match[1].replace(/\\u[\dA-F]{4}/gi, (m) => String.fromCharCode(parseInt(m.replace(/\\u/g, ''), 16)));
-                            if(!tags.includes(tag) && tag.length > 1) {
-                                tags.push(tag);
+                    // 扫描所有视频标题，找出带 # 的话题
+                    vList.forEach(v => {
+                        if (v.title) {
+                            let matches = v.title.match(/#([a-zA-Z0-9_]+)/g);
+                            if (matches) {
+                                matches.forEach(m => {
+                                    let tag = m.toLowerCase();
+                                    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                                });
                             }
                         }
-                        if (tags.length > 0) break; 
-                    }
+                    });
 
-                    if(tags.length === 0) throw new Error("DOM Structure Changed or Blocked");
+                    // 按出现频率排序
+                    let sortedTags = Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a]);
 
-                    // 将抓到的热门话题（如 olympics）拼装成点击即达的标签搜索页
-                    tags.forEach(tag => {
+                    if (sortedTags.length === 0) throw new Error("No hashtags extracted");
+
+                    // 截取前 15 个最热门的话题，拼装成官方话题页链接
+                    sortedTags.slice(0, 15).forEach(tag => {
                         items.push({ 
-                            title: '#' + tag, 
-                            link: `https://www.tiktok.com/tag/${encodeURIComponent(tag)}` 
+                            title: tag, 
+                            link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.replace('#', ''))}` 
                         });
                     });
                     break;
@@ -128,7 +155,7 @@
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Scraping_Live_${platform.name}...</span></div>`;
+            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Scraping_${platform.name}...</span></div>`;
 
             try {
                 const items = await getRealTimeData(platform.id);
@@ -146,12 +173,11 @@
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SCRAPE FAILED]</span><p class="text-[9px] text-slate-600 mt-2">Target blocked.</p></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SCRAPE FAILED]</span><p class="text-[9px] text-slate-600 mt-2">Target structure mutated or blocked.</p></div>`;
             }
         }
 
         async function init() {
-            // 错峰加载，规避风控
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
                 await new Promise(r => setTimeout(r, 400)); 
