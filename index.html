@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Intel Matrix // DIRECT FEED</title>
+    <title>Global Intel Matrix // PURE JSON</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -20,59 +20,32 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Global 5 Hotlist</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // PROXY WATERFALL ENGINE
+                    <span class="animate-blink text-red-500">● LIVE</span> // NATIVE JSON ENGINE
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">STRICT TARGETING ENABLED</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">PROXY: BILLOWING-SALAD (ACTIVE)</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
-        // 你已经成功的 2 个 + 待攻克的 3 个
+        // 你最稳的 CF 金钥匙，去掉了所有坑人的公共代理
+        const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
+
         const platforms = [
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-100' },
-            { id: 'youtube', name: 'YouTube Trend', color: 'border-red-600' },
-            { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-500' },
-            { id: 'tiktok', name: 'TikTok Trend', color: 'border-pink-500' }
+            { id: 'youtube', name: 'YouTube Trend (US)', color: 'border-red-600' },
+            { id: 'movies', name: 'Global Movie Trend', color: 'border-yellow-500' },
+            { id: 'tiktok', name: 'TikTok Trend (7D)', color: 'border-pink-500' }
         ];
 
-        // 核心武器：代理瀑布流。如果 A 代理被拦截，自动换 B 代理上
-        async function fetchWithProxies(targetUrl, isJson = false) {
-            const proxies = [
-                { url: 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=', type: 'raw' }, // 你的主力
-                { url: 'https://api.allorigins.win/get?url=', type: 'json_contents' },            // 免 CORS 备用
-                { url: 'https://api.codetabs.com/v1/proxy?quest=', type: 'raw' }                  // 纯净物理备用
-            ];
-
-            for (let proxy of proxies) {
-                try {
-                    const fetchUrl = proxy.url + encodeURIComponent(targetUrl);
-                    const res = await fetch(fetchUrl, { cache: 'no-store' });
-                    if (!res.ok) continue;
-                    
-                    let rawText = '';
-                    if (proxy.type === 'json_contents') {
-                        const data = await res.json();
-                        if (!data.contents) continue;
-                        rawText = data.contents;
-                    } else {
-                        rawText = await res.text();
-                    }
-
-                    // 智能识别：如果是抓到了 Cloudflare 的“防爬虫盾”页面，说明这个代理被识破了，立刻换下一个
-                    if (rawText.includes('Just a moment...') || rawText.includes('cf-browser-verification')) {
-                        continue; 
-                    }
-
-                    return isJson ? JSON.parse(rawText) : rawText;
-                } catch(e) {
-                    // 静默失败，直接尝试下一条命
-                }
-            }
-            throw new Error("All proxies blocked by target firewall.");
+        // 极简拉取函数，自带不缓存头
+        async function fetchRawData(url) {
+            const response = await fetch(MY_PROXY + encodeURIComponent(url), { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.text();
         }
 
         async function getRealTimeData(platformId) {
@@ -83,15 +56,15 @@
             switch (platformId) {
                 case 'reddit':
                     // 【已成功：保留】
-                    raw = await fetchWithProxies('https://www.reddit.com/r/all/hot.json?limit=15', true);
-                    raw.data.children.slice(0, 15).forEach(c => {
+                    raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15');
+                    JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
                         items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
                     });
                     break;
 
                 case 'twitter':
                     // 【已成功：保留】
-                    raw = await fetchWithProxies('https://trends24.in/united-states/', false);
+                    raw = await fetchRawData('https://trends24.in/united-states/');
                     const docTwitter = parser.parseFromString(raw, "text/html");
                     const tNodes = docTwitter.querySelectorAll('.trend-card__list li a');
                     for(let i=0; i<Math.min(tNodes.length, 15); i++) {
@@ -100,78 +73,65 @@
                     break;
 
                 case 'youtube':
-                    // 寻找全球范围内存活的 YouTube Invidious 节点
-                    const invidious = [
-                        'https://vid.puffyan.us/api/v1/trending',
-                        'https://invidious.nerdvpn.de/api/v1/trending',
-                        'https://inv.tux.rs/api/v1/trending',
-                        'https://invidious.jing.rocks/api/v1/trending'
-                    ];
-                    let ytData = null;
-                    for(let url of invidious) {
-                        try {
-                            ytData = await fetchWithProxies(url, true);
-                            if(ytData && ytData.length > 0) break;
-                        } catch(e) {}
-                    }
-                    if(!ytData) throw new Error("YouTube instances failed");
-                    ytData.slice(0, 15).forEach(v => items.push({ title: v.title, link: `https://www.youtube.com/watch?v=${v.videoId}` }));
+                    // 【全新修复】使用第三方 Piped 开源 API，直出美国区 YouTube 热搜 JSON
+                    raw = await fetchRawData('https://pipedapi.kavin.rocks/trending?region=US');
+                    JSON.parse(raw).slice(0, 15).forEach(v => {
+                        items.push({ title: v.title, link: `https://www.youtube.com${v.url}` });
+                    });
                     break;
 
-                case 'imdb':
-                    // 直接硬扒 IMDb 官方图表页
-                    raw = await fetchWithProxies('https://www.imdb.com/chart/moviemeter/', false);
-                    const docImdb = parser.parseFromString(raw, "text/html");
-                    const mNodes = docImdb.querySelectorAll('.ipc-title__text');
-                    mNodes.forEach(node => {
-                        let text = node.textContent.trim();
-                        if (/^\d+\./.test(text) && items.length < 15) {
-                            let aTag = node.closest('a');
-                            let link = aTag ? `https://www.imdb.com${aTag.getAttribute('href')}` : '#';
-                            items.push({ title: text.replace(/^\d+\.\s*/, ''), link: link });
-                        }
+                case 'movies':
+                    // 【全新修复】绕开 IMDb 的 5 秒盾，使用 TMDB (The Movie Database) 公开的 API 拿全球热门电影
+                    raw = await fetchRawData('https://api.themoviedb.org/3/trending/movie/day?api_key=15d2ea6d0dc1d476efbca3eba2b9bbfb');
+                    JSON.parse(raw).results.slice(0, 15).forEach(m => {
+                        items.push({ title: m.title, link: `https://www.themoviedb.org/movie/${m.id}` });
                     });
                     break;
 
                 case 'tiktok':
-                    // 绝对锁定：你点名的广告中心近7天热门页面
-                    raw = await fetchWithProxies('https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/zh?period=7&region=US', false);
-                    
-                    let tags = [];
-                    // 正则解剖刀：直接撕开底层的 JSON 代码块，拿到话题名
-                    const regexList = [/"hashtag_name":"([^"]+)"/g, /"keyword":"([^"]+)"/g];
-                    
-                    for (let regex of regexList) {
-                        let match;
-                        while ((match = regex.exec(raw)) !== null && tags.length < 15) {
-                            // 处理中文或特殊符号的转义
-                            let tag = match[1].replace(/\\u[\dA-F]{4}/gi, (m) => String.fromCharCode(parseInt(m.replace(/\\u/g, ''), 16)));
-                            if(!tags.includes(tag) && tag.length > 1) {
-                                tags.push(tag);
-                            }
+                    // 【全新修复】直接请求广告中心页面的底层数据 API，跳过 HTML 渲染拦截
+                    const tkApiUrl = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/hashtag/list?period=7&page=1&limit=15&country_code=US';
+                    try {
+                        raw = await fetchRawData(tkApiUrl);
+                        const jsonData = JSON.parse(raw);
+                        if (jsonData.data && jsonData.data.list) {
+                            jsonData.data.list.forEach(tag => {
+                                items.push({ 
+                                    title: '#' + tag.hashtag_name, 
+                                    link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` 
+                                });
+                            });
+                        } else {
+                            throw new Error("JSON structure mismatched");
                         }
-                        if (tags.length > 0) break; 
-                    }
-
-                    if(tags.length === 0) throw new Error("Hashtag data missing from payload");
-
-                    // 组装成必能打开的话题链接
-                    tags.forEach(tag => {
-                        items.push({ 
-                            title: '#' + tag, 
-                            link: `https://www.tiktok.com/tag/${encodeURIComponent(tag)}` 
+                    } catch (e) {
+                        // 如果官方 API 拦截了代理，触发终极备用计划：解析该页面 HTML
+                        const tkHtmlUrl = 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/zh?period=7&region=US';
+                        raw = await fetchRawData(tkHtmlUrl);
+                        let tags = [];
+                        const regexList = [/"hashtag_name":"([^"]+)"/g, /"keyword":"([^"]+)"/g];
+                        for (let regex of regexList) {
+                            let match;
+                            while ((match = regex.exec(raw)) !== null && tags.length < 15) {
+                                let tagStr = match[1].replace(/\\u[\dA-F]{4}/gi, (m) => String.fromCharCode(parseInt(m.replace(/\\u/g, ''), 16)));
+                                if(!tags.includes(tagStr) && tagStr.length > 1) tags.push(tagStr);
+                            }
+                            if (tags.length > 0) break;
+                        }
+                        tags.forEach(t => {
+                            items.push({ title: '#' + t, link: `https://www.tiktok.com/tag/${encodeURIComponent(t)}` });
                         });
-                    });
+                    }
                     break;
             }
             
-            if(items.length === 0) throw new Error("Empty Array Returned");
+            if(items.length === 0) throw new Error("Parsed empty array");
             return items;
         }
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Scraping_Live_${platform.name}...</span></div>`;
+            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Fetching_${platform.name}...</span></div>`;
 
             try {
                 const items = await getRealTimeData(platform.id);
@@ -189,12 +149,11 @@
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SCRAPE FAILED]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">Proxy pool exhausted or target mutated.</p></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[ACCESS DENIED]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">Target WAF block / Endpoint dead.</p></div>`;
             }
         }
 
         async function init() {
-            // 依然保持错峰请求，确保存活率
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
                 await new Promise(r => setTimeout(r, 400)); 
