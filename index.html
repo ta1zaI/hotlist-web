@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Omni-Matrix // CACHE DEFENSE EDITION</title>
+    <title>Omni-Matrix // CONCURRENCY SAFE EDITION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -20,7 +20,7 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Omni-Matrix 15</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // CLOUDFLARE ROUTING + CACHE SHIELD ACTIVE
+                    <span class="animate-blink text-red-500">● LIVE</span> // CONCURRENCY SAFE RENDERING
                 </p>
             </div>
             <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0 flex items-center gap-4">
@@ -36,23 +36,17 @@
     </div>
 
     <script>
-        // 你的万能后端，负责跨域穿透和偷偷注入 API Key
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
         const platforms = [
-            // --- 海外铁三角 ---
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-100' },
             { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-500' },
-
-            // --- 国内泛娱乐 ---
             { id: 'bilibili', name: 'Bilibili 全站', hashId: '74KvxwokxM', color: 'border-pink-400' },
             { id: 'xiaohongshu', name: '小红书热榜', hashId: 'L4MdA5ldxD', color: 'border-red-600' },
             { id: 'wechat', name: '微信热文', hashId: 'WnBe01o371', color: 'border-green-500' },
             { id: 'sina', name: '新浪热榜', hashId: '4qv9zk1daK', color: 'border-red-500' },
             { id: 'maoyan', name: '猫眼票房榜', hashId: '9JndkpJe3V', color: 'border-red-700' },
-
-            // --- 核心游戏阵地 ---
             { id: '3dm', name: '3DM 游戏网', hashId: 'YqoXQR0vOD', color: 'border-orange-600' },
             { id: 'gcores', name: '机核网', hashId: 'wWmoOVYe4E', color: 'border-zinc-500' },
             { id: 'gamersky', name: '游民星空', hashId: 'ARe1kXnv7n', color: 'border-blue-600' },
@@ -69,9 +63,6 @@
         }
 
         async function getRealTimeData(platform, forceRefresh = false) {
-            // ==========================================
-            // 【省钱护盾】：30分钟本地记忆
-            // ==========================================
             const CACHE_MINUTES = 30; 
             const cacheKey = `omni_cache_${platform.id}`;
             
@@ -80,23 +71,17 @@
                 if (cachedData) {
                     const parsedCache = JSON.parse(cachedData);
                     const now = new Date().getTime();
-                    // 如果没过期，直接使用缓存
                     if (now - parsedCache.timestamp < CACHE_MINUTES * 60 * 1000) {
-                        console.log(`[Cache Hit] ${platform.name} - 零消耗加载`);
                         return parsedCache.items;
                     }
                 }
             }
 
-            // ==========================================
-            // 【真实拉取】：缓存过期或强制刷新时执行
-            // ==========================================
             let items = [];
             let raw = '';
             const parser = new DOMParser();
 
             if (platform.hashId) {
-                // 国内商业 API 极速拉取
                 const apiUrl = `https://api.tophubdata.com/nodes/${platform.hashId}`;
                 raw = await fetchViaBackend(apiUrl);
                 let json;
@@ -114,7 +99,6 @@
                     throw new Error("Invalid Tophub API Payload");
                 }
             } else {
-                // 海外原生解构
                 switch (platform.id) {
                     case 'reddit':
                         raw = await fetchViaBackend('https://www.reddit.com/r/all/hot.json?limit=15');
@@ -140,9 +124,6 @@
             
             if(items.length === 0) throw new Error("Parsed empty array");
 
-            // ==========================================
-            // 【写入缓存】：成功拉取后，立刻存入本地金库
-            // ==========================================
             localStorage.setItem(cacheKey, JSON.stringify({
                 timestamp: new Date().getTime(),
                 items: items
@@ -152,18 +133,11 @@
         }
 
         async function loadCard(platform, index, forceRefresh = false) {
-            const container = document.getElementById('board-container');
+            // 【核心修复】：找到专属包装盒，只修改内部内容，不再破坏整体结构
+            const wrapper = document.getElementById(`card-wrapper-${index}`);
+            const loadingText = platform.hashId ? `Routing_Backend...` : `Fetching_${platform.name}...`;
             
-            // 如果是初始化加载且不是强制刷新，且本地有缓存，可以瞬间出结果，不显示 Fetching 动画
-            const hasCache = !forceRefresh && localStorage.getItem(`omni_cache_${platform.id}`);
-            
-            let cardElement = document.getElementById(`card-${index}`);
-            if (!cardElement) {
-                container.innerHTML += `<div id="card-${index}" class="h-[450px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Loading...</span></div>`;
-                cardElement = document.getElementById(`card-${index}`);
-            } else if (forceRefresh) {
-                cardElement.innerHTML = `<div class="h-full flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Force_Syncing_${platform.name}...</span></div>`;
-            }
+            wrapper.innerHTML = `<div class="h-[450px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">${forceRefresh ? 'Force_Syncing' : loadingText}</span></div>`;
 
             try {
                 const items = await getRealTimeData(platform, forceRefresh);
@@ -178,23 +152,33 @@
                 items.forEach(item => {
                     html += `<li class="border-b border-slate-800/50 pb-2 last:border-0"><a href="${item.link}" target="_blank" class="text-[11px] leading-relaxed hover:text-emerald-400 block tracking-tight font-sans text-slate-300 transition-colors"> > ${item.title}</a></li>`;
                 });
-                cardElement.outerHTML = html + `</ul></div>`;
+                wrapper.innerHTML = html + `</ul></div>`;
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
-                const errMsg = platform.hashId ? "API Limit / Fetch Failed." : "Target Endpoint Blocked.";
-                cardElement.innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SYSTEM OFFLINE]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">${errMsg}</p></div>`;
+                let errMsg = platform.hashId ? "API Limit / Fetch Failed." : "Target Endpoint Blocked.";
+                if (err.message.includes("429")) errMsg = "Rate Limited (Wait 10 mins)."; // 专属 Reddit 429 提示
+                wrapper.innerHTML = `<div class="h-[450px] p-6 text-center flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SYSTEM OFFLINE]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">${errMsg}</p></div>`;
             }
         }
 
-        // 强行刷新所有面板（会无视缓存，直接扣点数）
         async function forceRefreshAll() {
-            console.log("!!! INITIATING FORCE REFRESH - COSTING API POINTS !!!");
             for (let i = 0; i < platforms.length; i++) {
                 loadCard(platforms[i], i, true); 
             }
         }
 
         async function init() {
+            const container = document.getElementById('board-container');
+            container.innerHTML = ''; // 清空容器
+            
+            // 【核心修复】：先同步把 15 个绝缘防踩踏的“包装盒”放进页面
+            platforms.forEach((p, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.id = `card-wrapper-${index}`;
+                container.appendChild(wrapper);
+            });
+
+            // 然后再并发拉取数据，互相绝对安全
             for (let i = 0; i < platforms.length; i++) {
                 loadCard(platforms[i], i, false); 
             }
