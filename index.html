@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Intel Matrix // LIVE</title>
+    <title>Global Intel Matrix // DIRECT FEED</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -20,112 +20,136 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Global 5 Hotlist</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // SECURE MULTI-PROXY ENABLED
+                    <span class="animate-blink text-red-500">● LIVE</span> // DOM SCRAPING ENGINE ENABLED
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">REAL-TIME SYNC ACTIVE</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">BYPASSING ALL FIREWALLS</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
-        // 【核心防御】双重代理层：自己的 CF 挂了，自动用备用公共代理顶上
-        const PROXIES = [
-            'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=',
-            'https://api.allorigins.win/raw?url=' 
-        ];
+        // 你的金钥匙
+        const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
+        
+        // 终极万能代理 (使用 get 路径，完美解决 CORS 和套娃报错)
+        const GOD_PROXY = 'https://api.allorigins.win/get?url=';
 
-        // 镜像池
-        const MIRRORS = [
-            'https://rsshub.rssforever.com',
-            'https://hub.slarker.me',
-            'https://rss.shab.fun',
-            'https://rsshub.liubing.me'
-        ];
-
-        // 平台配置（锁死你需要的 5 个外网核心）
         const platforms = [
-            { id: 'reddit', name: 'Reddit /r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', color: 'border-orange-500' },
-            { id: 'youtube', name: 'YouTube Trend (US)', type: 'json-yt', url: 'https://yt.lemnoslife.com/trending', color: 'border-red-600' },
-            { id: 'imdb', name: 'IMDb Popular', type: 'xml', route: '/imdb/trending/movie', color: 'border-yellow-500' },
-            { id: 'twitter', name: 'X Trend (US)', type: 'xml', route: '/twitter/trends/23424977', color: 'border-slate-100' },
-            { id: 'tiktok', name: 'TikTok Trend', type: 'xml', route: '/tiktok/trending/worldwide', color: 'border-pink-500' }
+            { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
+            { id: 'youtube', name: 'YouTube Trend (US)', color: 'border-red-600' },
+            { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-500' },
+            { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-100' },
+            { id: 'tiktok', name: 'TikTok Trend', color: 'border-pink-500' }
         ];
 
-        // 究极轮询引擎：尝试不同节点 + 尝试不同代理
-        async function fetchWithResilience(platform) {
-            let targetUrls = platform.url ? [platform.url] : MIRRORS.map(m => m + platform.route);
-
-            for (let targetUrl of targetUrls) {
-                for (let proxy of PROXIES) {
-                    try {
-                        const fetchUrl = proxy + encodeURIComponent(targetUrl);
-                        // { cache: 'no-store' } 保证每次拿到最新数据，且不破坏 URL 路由结构
-                        const response = await fetch(fetchUrl, { cache: 'no-store' });
-                        
-                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                        
-                        let data = platform.type.includes('json') ? await response.json() : await response.text();
-                        
-                        // 确保拿到的是真实的 XML 而不是代理报错网页
-                        if (platform.type === 'xml' && !data.includes('<item')) throw new Error('Invalid XML');
-                        
-                        return data;
-                    } catch (e) {
-                        console.warn(`[Proxy/Node Failed] ${targetUrl} via ${proxy}`);
-                        continue; // 当前组合失败，尝试下一种组合
-                    }
-                }
+        // 核心突破口：不管目标是 HTML 还是 JSON，强行拿回来解析
+        async function fetchRawData(url, useGodProxy = false) {
+            const fetchUrl = useGodProxy ? (GOD_PROXY + encodeURIComponent(url)) : (MY_PROXY + encodeURIComponent(url));
+            
+            // 加入随机数彻底打穿 CDN 缓存
+            const nocacheUrl = fetchUrl + (fetchUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
+            
+            const response = await fetch(nocacheUrl);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            if (useGodProxy) {
+                const data = await response.json();
+                if (!data.contents) throw new Error('Proxy returns empty');
+                return data.contents; // AllOrigins 会把网页源码装在 contents 里返回
+            } else {
+                return await response.text(); 
             }
-            throw new Error('All combinations exhausted');
+        }
+
+        // 针对每个平台的“定制解剖刀”
+        async function getRealTimeData(platformId) {
+            let items = [];
+            let raw = '';
+            const parser = new DOMParser();
+
+            switch (platformId) {
+                case 'reddit':
+                    // Reddit 官方通道 (直接用你的代理，最稳)
+                    raw = await fetchRawData('https://www.reddit.com/r/all/hot.json', false);
+                    JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
+                        items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
+                    });
+                    break;
+
+                case 'youtube':
+                    // Lemnoslife 提供的纯净原生 API
+                    raw = await fetchRawData('https://yt.lemnoslife.com/trending', false);
+                    JSON.parse(raw).items.slice(0, 15).forEach(v => {
+                        items.push({ title: v.snippet.title, link: `https://www.youtube.com/watch?v=${v.id}` });
+                    });
+                    break;
+
+                case 'twitter':
+                    // 强行扒取 Trends24 美国区的网页源码 (使用万能代理防拉黑)
+                    raw = await fetchRawData('https://trends24.in/united-states/', true);
+                    const docTwitter = parser.parseFromString(raw, "text/html");
+                    const tNodes = docTwitter.querySelectorAll('.trend-card__list li a');
+                    for(let i=0; i<Math.min(tNodes.length, 15); i++) {
+                        items.push({ title: tNodes[i].textContent.trim(), link: tNodes[i].href });
+                    }
+                    break;
+
+                case 'tiktok':
+                    // TikWM 官方全球榜单 JSON
+                    raw = await fetchRawData('https://www.tikwm.com/api/feed/list?region=US', false);
+                    JSON.parse(raw).data.slice(0, 15).forEach(v => {
+                        // 提取视频标题，如果没有则显示用户名
+                        let title = v.title ? v.title.substring(0, 60) + '...' : `Trending Video by @${v.author.unique_id}`;
+                        items.push({ title: title, link: `https://www.tiktok.com/@${v.author.unique_id}/video/${v.id}` });
+                    });
+                    break;
+
+                case 'imdb':
+                    // 直接扒取 Trakt.tv (基于 IMDb 数据的北美最大影迷站) 的实时趋势 HTML
+                    raw = await fetchRawData('https://trakt.tv/movies/trending', true);
+                    const docImdb = parser.parseFromString(raw, "text/html");
+                    const mNodes = docImdb.querySelectorAll('.grid-item .titles h3 a');
+                    for(let i=0; i<Math.min(mNodes.length, 15); i++) {
+                        items.push({ title: mNodes[i].textContent.trim(), link: `https://trakt.tv${mNodes[i].getAttribute('href')}` });
+                    }
+                    break;
+            }
+            
+            if(items.length === 0) throw new Error("Parsed empty array");
+            return items;
         }
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-slate-500 tracking-tighter font-bold">Connecting_${platform.name}...</span></div>`;
+            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Scraping_${platform.name}...</span></div>`;
 
             try {
-                const data = await fetchWithResilience(platform);
-                let items = [];
-
-                if (platform.type === 'json') {
-                    items = data.data.children.map(c => ({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
-                } else if (platform.type === 'json-yt') {
-                    // 专门处理 YouTube 原生接口
-                    items = data.items.map(v => ({ title: v.snippet.title, link: `https://www.youtube.com/watch?v=${v.id}` }));
-                } else {
-                    const doc = new DOMParser().parseFromString(data, "text/xml");
-                    const nodes = doc.querySelectorAll("item");
-                    nodes.forEach((n, i) => { 
-                        if(i < 15) items.push({ title: n.querySelector("title")?.textContent, link: n.querySelector("link")?.textContent }); 
-                    });
-                }
-
-                if (items.length === 0) throw new Error('Empty Data');
-
+                const items = await getRealTimeData(platform.id);
                 let html = `
                     <div class="h-[500px] bg-slate-900 game-border ${platform.color} rounded-lg flex flex-col overflow-hidden transition-all hover:translate-y-[-4px]">
                         <div class="p-3 bg-slate-800/80 flex justify-between items-center border-b-2 border-slate-800">
-                            <span class="font-black text-[10px] uppercase text-white">${platform.name}</span>
+                            <span class="font-black text-[10px] uppercase text-white tracking-widest">${platform.name}</span>
                             <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981] animate-blink"></div>
                         </div>
                         <ul class="p-3 space-y-3 overflow-y-auto flex-1 custom-scrollbar">
                 `;
-                items.slice(0, 15).forEach(item => {
-                    html += `<li class="border-b border-slate-800/50 pb-2 last:border-0"><a href="${item.link}" target="_blank" class="text-[11px] leading-tight hover:text-emerald-400 block tracking-tight font-sans text-slate-300 transition-colors"> > ${item.title}</a></li>`;
+                items.forEach(item => {
+                    html += `<li class="border-b border-slate-800/50 pb-2 last:border-0"><a href="${item.link}" target="_blank" class="text-[11px] leading-relaxed hover:text-emerald-400 block tracking-tight font-sans text-slate-300 transition-colors"> > ${item.title}</a></li>`;
                 });
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SYNC FAILED]</span><p class="text-[9px] text-slate-600 mt-2">All routes & proxies blocked.</p></div>`;
+                console.error(`Error on ${platform.id}:`, err);
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SCRAPE FAILED]</span><p class="text-[9px] text-slate-600 mt-2">Target structure mutated or blocked.</p></div>`;
             }
         }
 
         async function init() {
-            // 依然保持错峰请求，避免瞬间高并发触发风控
+            // 降低并发，一个一个扒，假装成人类在慢慢打开网页
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
-                await new Promise(r => setTimeout(r, 300)); 
+                await new Promise(r => setTimeout(r, 600)); 
             }
         }
         init();
