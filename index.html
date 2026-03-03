@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Intel Matrix // 4-NODE EDITION</title>
+    <title>Omni-Matrix // 4-NODE STRIKE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -18,12 +18,12 @@
     <div class="max-w-[1400px] mx-auto">
         <header class="mb-10 flex flex-col md:flex-row justify-between items-end border-b-2 border-slate-800 pb-4">
             <div>
-                <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Omni-Matrix 4</h1>
+                <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Global 4 Hotlist</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
                     <span class="animate-blink text-red-500">● LIVE</span> // ASYMMETRIC SCRAPING ENGINE
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">YOUTUBE NODE OFFLINE // 4 SYSTEMS ACTIVE</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">YOUTUBE DROPPED // STEALTH MODE ACTIVE</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container"></div>
@@ -52,7 +52,7 @@
 
             switch (platformId) {
                 // ==========================================
-                // 【稳如磐石区】：Reddit, Twitter, IMDb
+                // 【绝对安全区】：一字未改，保持你的胜利果实
                 // ==========================================
                 case 'reddit':
                     raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15');
@@ -78,39 +78,49 @@
                     break;
 
                 // ==========================================
-                // 【死磕到底区】：TikTok 官方创意中心话题榜
+                // 【极限突围区】：TikTok 官方 API 隐形穿透
                 // ==========================================
                 case 'tiktok':
-                    // 这是你截图页面的官方原生底层数据接口
+                    // TikTok 商业中心底层原生 API
                     const tkApiUrl = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/hashtag/list?period=7&page=1&limit=15&country_code=US';
                     
-                    try {
-                        // 优先尝试使用你的 CF 代理获取原生 JSON
-                        const tkRes = await fetch(MY_PROXY + encodeURIComponent(tkApiUrl), { cache: 'no-store' });
-                        if (!tkRes.ok) throw new Error("CF Proxy Blocked by TikTok");
-                        
-                        const tkJson = await tkRes.json();
-                        tkJson.data.list.forEach(tag => {
-                            items.push({ 
-                                title: '#' + tag.hashtag_name, 
-                                link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` 
-                            });
-                        });
-                    } catch (e) {
-                        console.warn("CF Proxy failed for TikTok, engaging secondary fallback...", e);
-                        
-                        // 终极备选：如果你的 CF 被封，尝试用 corsproxy 强行跨域
-                        const fallbackRes = await fetch('https://corsproxy.io/?' + encodeURIComponent(tkApiUrl), { cache: 'no-store' });
-                        if (!fallbackRes.ok) throw new Error("All proxies blocked by TikTok");
-                        
-                        const fallbackJson = await fallbackRes.json();
-                        fallbackJson.data.list.forEach(tag => {
-                            items.push({ 
-                                title: '#' + tag.hashtag_name, 
-                                link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` 
-                            });
-                        });
+                    // 隐形代理池：避开已经被拉黑的 corsproxy 和 AllOrigins
+                    const stealthProxies = [
+                        'https://api.codetabs.com/v1/proxy?quest=',
+                        'https://thingproxy.freeboard.io/fetch/',
+                        MY_PROXY // 你的 CF 代理垫底
+                    ];
+                    
+                    let tkJson = null;
+
+                    // 轮询攻击：一个被墙就换下一个，直到拿到数据
+                    for (let proxy of stealthProxies) {
+                        try {
+                            const res = await fetch(proxy + encodeURIComponent(tkApiUrl), { cache: 'no-store' });
+                            if (!res.ok) continue;
+                            
+                            const data = await res.json();
+                            // 校验是否真的拿到了 JSON 数据，而不是被 WAF 拦截的 HTML 页面
+                            if (data && data.data && data.data.list) {
+                                tkJson = data;
+                                break; 
+                            }
+                        } catch (e) {
+                            console.warn(`Proxy ${proxy} failed to bypass TikTok WAF.`);
+                        }
                     }
+
+                    if (!tkJson) {
+                        throw new Error("WAF Firewall Blocked All Public Proxies");
+                    }
+
+                    // 组装成官方 Hashtag 搜索页链接
+                    tkJson.data.list.slice(0, 15).forEach(tag => {
+                        items.push({ 
+                            title: '#' + tag.hashtag_name, 
+                            link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` 
+                        });
+                    });
                     break;
             }
             
@@ -138,7 +148,7 @@
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[ACCESS DENIED]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">Target WAF block / Endpoint dead.</p></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[FIREWALL BLOCK]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">Target WAF explicitly blocked proxy IPs.</p></div>`;
             }
         }
 
