@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Omni-Matrix // US TARGETING ACTIVE</title>
+    <title>Omni-Matrix // NEXT.JS HIJACK EDITION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -20,10 +20,10 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Omni-Matrix 4</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // RESIDENTIAL SCRAPE ENGINE ENABLED
+                    <span class="animate-blink text-red-500">● LIVE</span> // STATE HIJACK ENGINE ENABLED
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">TIKTOK: STRICT US GEOTARGETING ACTIVE</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">TIKTOK WAF BYPASS: NEXT.JS EXTRACTION</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container"></div>
@@ -31,7 +31,7 @@
 
     <script>
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
-        // 你的金钥匙
+        // 你的真实 API 密钥
         const SCRAPER_API_KEY = '55cc9fdf6a593f6134c563837a4ace68'; 
 
         const platforms = [
@@ -54,7 +54,7 @@
 
             switch (platformId) {
                 // ==========================================
-                // 【稳如磐石区】：Reddit, Twitter, IMDb (绝对不动)
+                // 【稳如磐石区】：绝对不动
                 // ==========================================
                 case 'reddit':
                     raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15');
@@ -80,58 +80,59 @@
                     break;
 
                 // ==========================================
-                // 【TikTok 特别行动】：强制美国物理 IP + 官方美国区参数
+                // 【外科手术区】：TikTok 底层状态劫持
                 // ==========================================
                 case 'tiktok':
                     let tags = [];
                     
-                    // 战术A：优先打底层 API，速度最快。参数严格指定 country_code=US
-                    const tkApiUrl = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/hashtag/list?period=7&page=1&limit=20&country_code=US';
+                    // 目标锁定：官方网页 (注意：换成 en 语言路径，降低 TikTok 服务器对地域冲突的拦截概率，但数据依然是美国的)
+                    const tkTargetUrl = 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en?domain=country&countryCode=US&period=7';
                     
-                    // 【核心改动】：加入了 &country_code=us，强制 ScraperAPI 必须用美国境内的家庭宽带发起请求
-                    const fastScraperUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(tkApiUrl)}&country_code=us&premium=true`;
+                    // 【关键改变】：去掉了 render=true。只获取最原始的 HTML，速度极快，WAF 根本反应不过来
+                    const fastScraperUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(tkTargetUrl)}&country_code=us`;
                     
                     try {
-                        const fastRes = await fetch(fastScraperUrl, { cache: 'no-store' });
-                        const fastJson = await fastRes.json();
-                        if (fastJson && fastJson.data && fastJson.data.list) {
-                            fastJson.data.list.forEach(tag => {
-                                if(!tags.includes(tag.hashtag_name)) tags.push(tag.hashtag_name);
-                            });
-                        }
-                    } catch (e) {
-                        console.warn("API route failed, falling back to HTML DOM extraction...");
-                    }
-
-                    // 战术B：如果 API 不通，强撕网页源码。修正 TikTok 官方对美国区的精确 URL 参数
-                    if (tags.length === 0) {
-                        const tkTargetUrl = 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/zh?domain=country&countryCode=US&period=7';
-                        // 同样强制使用美国 IP (&country_code=us) 并开启渲染
-                        const hardScraperUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(tkTargetUrl)}&country_code=us&render=true&premium=true`;
+                        const res = await fetch(fastScraperUrl, { cache: 'no-store' });
+                        if (!res.ok) throw new Error("ScraperAPI rejected");
+                        raw = await res.text();
                         
-                        const hardRes = await fetch(hardScraperUrl, { cache: 'no-store' });
-                        if (!hardRes.ok) throw new Error("Headless browser failed");
-                        raw = await hardRes.text();
+                        // 核心劫持：直接找 Next.js 注入的底层数据块
+                        const nextDataMatch = raw.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
                         
-                        // 正则强挖底层 JSON 数据
-                        const regexList = [/"hashtag_name":"([^"]+)"/g, /"keyword":"([^"]+)"/g];
-                        for (let regex of regexList) {
+                        if (nextDataMatch) {
+                            const nextDataStr = nextDataMatch[1];
+                            // 在这个巨大的 JSON 字符串里，无视结构，暴力猎杀所有 hashtag
+                            const hashtagRegex = /"hashtag_name":"([^"]+)"/g;
                             let match;
-                            while ((match = regex.exec(raw)) !== null) {
-                                let tagStr = match[1].replace(/\\u[\dA-F]{4}/gi, (m) => String.fromCharCode(parseInt(m.replace(/\\u/g, ''), 16)));
-                                if(!tags.includes(tagStr) && tagStr.length > 1) {
+                            while ((match = hashtagRegex.exec(nextDataStr)) !== null) {
+                                let tagStr = match[1];
+                                if (!tags.includes(tagStr) && tagStr.length > 1) {
                                     tags.push(tagStr);
                                 }
                             }
-                            if (tags.length > 0) break;
+                        }
+                    } catch (e) {
+                        console.warn("HTML hijack failed, trying raw API...");
+                    }
+
+                    // 备用方案：用 ScraperAPI 直接打底层接口
+                    if (tags.length === 0) {
+                        const tkApiUrl = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/hashtag/list?period=7&page=1&limit=20&country_code=US';
+                        const apiScraperUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(tkApiUrl)}&country_code=us`;
+                        const apiRes = await fetch(apiScraperUrl);
+                        const apiJson = await apiRes.json();
+                        if (apiJson && apiJson.data && apiJson.data.list) {
+                            apiJson.data.list.forEach(item => {
+                                if (!tags.includes(item.hashtag_name)) tags.push(item.hashtag_name);
+                            });
                         }
                     }
 
                     if (tags.length === 0) {
-                        throw new Error("WAF Blocked or Timeout");
+                        throw new Error("Target Structure Mutated / Extraction Failed");
                     }
 
-                    // 组装最终呈现列表
+                    // 组装结果，取前 15 个最热话题
                     tags.slice(0, 15).forEach(tag => {
                         items.push({ 
                             title: '#' + tag, 
@@ -147,8 +148,7 @@
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            const loadingText = platform.id === 'tiktok' ? `Geo-Targeting_${platform.name}...` : `Fetching_${platform.name}...`;
-            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">${loadingText}</span></div>`;
+            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Hijacking_${platform.name}...</span></div>`;
 
             try {
                 const items = await getRealTimeData(platform.id);
@@ -166,7 +166,7 @@
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[FIREWALL BLOCK]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">Target WAF block / Endpoint dead.</p></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[EXTRACTION FAILED]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">Anti-Bot Triggered.</p></div>`;
             }
         }
 
