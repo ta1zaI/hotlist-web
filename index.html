@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Intel Matrix // DIRECT SCRAPE</title>
+    <title>Global Intel Matrix // LIVE FEED</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -20,7 +20,7 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Global 5 Hotlist</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // DOM SCRAPING ENGINE V6
+                    <span class="animate-blink text-red-500">● LIVE</span> // SECURE SCRAPING ENGINE
                 </p>
             </div>
             <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">PROXY: BILLOWING-SALAD (ACTIVE)</div>
@@ -30,24 +30,24 @@
     </div>
 
     <script>
-        // 核心：只用你自己的专属代理，绝对不套娃！
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
         const platforms = [
+            // 已成功的两个，原样保留
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
+            { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-100' },
+            // 待修复的三个
             { id: 'youtube', name: 'YouTube Trend (US)', color: 'border-red-600' },
             { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-500' },
-            { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-100' },
             { id: 'tiktok', name: 'TikTok Trend', color: 'border-pink-500' }
         ];
 
-        // 基础抓取函数：可选择是否带时间戳防止 404
-        async function fetchRawData(url, useTimestamp = true) {
+        // 关闭那些容易引发 404/403 的假时间戳
+        async function fetchRawData(url, useTimestamp = false) {
             let targetUrl = url;
             if (useTimestamp) {
                 targetUrl += (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
             }
-            // 加上 cache: 'no-store' 强行要求浏览器不使用缓存
             const response = await fetch(MY_PROXY + encodeURIComponent(targetUrl), { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.text();
@@ -60,23 +60,15 @@
 
             switch (platformId) {
                 case 'reddit':
-                    // Reddit 官方实时 JSON
+                    // 【成功项保持不动】
                     raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15', true);
                     JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
                         items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
                     });
                     break;
 
-                case 'youtube':
-                    // YouTube 原生 JSON 接口 (坚决不加时间戳，防止报 404)
-                    raw = await fetchRawData('https://yt.lemnoslife.com/trending', false);
-                    JSON.parse(raw).items.slice(0, 15).forEach(v => {
-                        items.push({ title: v.snippet.title, link: `https://www.youtube.com/watch?v=${v.id}` });
-                    });
-                    break;
-
                 case 'twitter':
-                    // 扒取北美实时推特热搜榜网页
+                    // 【成功项保持不动】
                     raw = await fetchRawData('https://trends24.in/united-states/', true);
                     const docTwitter = parser.parseFromString(raw, "text/html");
                     const tNodes = docTwitter.querySelectorAll('.trend-card__list li a');
@@ -85,47 +77,37 @@
                     }
                     break;
 
+                case 'youtube':
+                    // 【修复 404】换用真实存在的 API 路由
+                    raw = await fetchRawData('https://yt.lemnoslife.com/videos?part=snippet&chart=mostPopular&regionCode=US&maxResults=15', false);
+                    JSON.parse(raw).items.forEach(v => {
+                        items.push({ title: v.snippet.title, link: `https://www.youtube.com/watch?v=${v.id}` });
+                    });
+                    break;
+
                 case 'tiktok':
-                    // 你指定的 TikTok 商业创意中心 (中文页)
-                    raw = await fetchRawData('https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/zh', true);
-                    
-                    let tags = [];
-                    // 多重正则暴力解构：防止 TikTok 更改 JSON 字段名
-                    const regexList = [
-                        /"hashtag_name":"([^"]+)"/g, 
-                        /"keyword":"([^"]+)"/g, 
-                        /"trend_name":"([^"]+)"/g
-                    ];
-                    
-                    for (let regex of regexList) {
-                        let match;
-                        while ((match = regex.exec(raw)) !== null && tags.length < 15) {
-                            if(!tags.includes(match[1]) && match[1].length > 1) {
-                                tags.push(match[1]);
-                            }
-                        }
-                        if (tags.length > 0) break; // 只要有一种正则匹配成功，就停止
-                    }
-
-                    if(tags.length === 0) throw new Error("DOM Structure Changed or Blocked");
-
-                    // 组装成必能打开的官方话题链接
-                    tags.forEach(tag => {
-                        items.push({ 
-                            title: '#' + tag, 
-                            link: `https://www.tiktok.com/tag/${encodeURIComponent(tag)}` 
-                        });
+                    // 【修复 DOM 封锁】换用极速纯净的 JSON 解析接口，直接拿 US 热门数据
+                    raw = await fetchRawData('https://www.tikwm.com/api/feed/list?region=US&count=15', false);
+                    JSON.parse(raw).data.forEach(v => {
+                        let title = v.title ? v.title.substring(0, 60) + '...' : `Trending Video by @${v.author.unique_id}`;
+                        items.push({ title: title, link: `https://www.tiktok.com/@${v.author.unique_id}/video/${v.video_id || v.id}` });
                     });
                     break;
 
                 case 'imdb':
-                    // 直接扒取基于 IMDb 的北美影迷热榜网页 Trakt
-                    raw = await fetchRawData('https://trakt.tv/movies/trending', true);
+                    // 【修复 403】不碰 Trakt 了，直接暴力解剖 IMDb 官方最热电影排行榜网页
+                    raw = await fetchRawData('https://www.imdb.com/chart/moviemeter/', false);
                     const docImdb = parser.parseFromString(raw, "text/html");
-                    const mNodes = docImdb.querySelectorAll('.grid-item .titles h3 a');
-                    for(let i=0; i<Math.min(mNodes.length, 15); i++) {
-                        items.push({ title: mNodes[i].textContent.trim(), link: `https://trakt.tv${mNodes[i].getAttribute('href')}` });
-                    }
+                    const mNodes = docImdb.querySelectorAll('.ipc-title__text');
+                    mNodes.forEach(node => {
+                        let text = node.textContent.trim();
+                        // 精准切出带排名的电影，例如 "1. Dune: Part Two"
+                        if (/^\d+\./.test(text) && items.length < 15) {
+                            let aTag = node.closest('a');
+                            let link = aTag ? `https://www.imdb.com${aTag.getAttribute('href')}` : '#';
+                            items.push({ title: text.replace(/^\d+\.\s*/, ''), link: link });
+                        }
+                    });
                     break;
             }
             
@@ -153,15 +135,15 @@
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SCRAPE FAILED]</span><p class="text-[9px] text-slate-600 mt-2">Source layout mutated or access denied.</p></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SCRAPE FAILED]</span><p class="text-[9px] text-slate-600 mt-2">Target blocked.</p></div>`;
             }
         }
 
         async function init() {
-            // 一个接一个地请求，防止你的 CF 代理瞬间并发过高触发目标站的防火墙
+            // 错峰加载，规避大厂瞬时风控
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
-                await new Promise(r => setTimeout(r, 500)); 
+                await new Promise(r => setTimeout(r, 400)); 
             }
         }
         init();
