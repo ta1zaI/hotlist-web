@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Omni-Matrix // PURE BACKEND EDITION</title>
+    <title>Omni-Matrix // CACHE DEFENSE EDITION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -20,58 +20,84 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Omni-Matrix 15</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // CLOUDFLARE BACKEND ROUTING ACTIVE
+                    <span class="animate-blink text-red-500">● LIVE</span> // CLOUDFLARE ROUTING + CACHE SHIELD ACTIVE
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">INTL TRIO + DOMESTIC 12 // CLEAN BUILD</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0 flex items-center gap-4">
+                <span>INTL TRIO + DOMESTIC 12</span>
+                <button onclick="forceRefreshAll()" class="px-3 py-1 bg-slate-800 hover:bg-emerald-600 text-white rounded border border-slate-600 transition-colors cursor-pointer flex items-center gap-2">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    FORCE REFRESH (COSTS POINTS)
+                </button>
+            </div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
-        // 你的专属后端！所有脏活累活和鉴权都在它肚子里完成
+        // 你的万能后端，负责跨域穿透和偷偷注入 API Key
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
         const platforms = [
-            // --- 绝不动摇的海外铁三角 ---
+            // --- 海外铁三角 ---
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-100' },
             { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-500' },
 
-            // --- 你的定制国内全矩阵 ---
+            // --- 国内泛娱乐 ---
             { id: 'bilibili', name: 'Bilibili 全站', hashId: '74KvxwokxM', color: 'border-pink-400' },
             { id: 'xiaohongshu', name: '小红书热榜', hashId: 'L4MdA5ldxD', color: 'border-red-600' },
+            { id: 'wechat', name: '微信热文', hashId: 'WnBe01o371', color: 'border-green-500' },
+            { id: 'sina', name: '新浪热榜', hashId: '4qv9zk1daK', color: 'border-red-500' },
+            { id: 'maoyan', name: '猫眼票房榜', hashId: '9JndkpJe3V', color: 'border-red-700' },
+
+            // --- 核心游戏阵地 ---
             { id: '3dm', name: '3DM 游戏网', hashId: 'YqoXQR0vOD', color: 'border-orange-600' },
             { id: 'gcores', name: '机核网', hashId: 'wWmoOVYe4E', color: 'border-zinc-500' },
-            { id: 'sykong', name: '手游那点事', hashId: 'n3moBXPdN5', color: 'border-teal-500' },
             { id: 'gamersky', name: '游民星空', hashId: 'ARe1kXnv7n', color: 'border-blue-600' },
             { id: 'yys', name: '游研社', hashId: 'Om4ej8mvxE', color: 'border-blue-400' },
-            { id: 'gameres', name: 'GameRes游资网', hashId: 'ARe1Lyld7n', color: 'border-indigo-500' },
             { id: 'gouhuo', name: '篝火营地', hashId: 'KGoRRNzol6', color: 'border-yellow-600' },
-            { id: 'wechat', name: '微信热文', hashId: 'WnBe01o371', color: 'border-green-500' },
-            { id: 'maoyan', name: '猫眼票房榜', hashId: '9JndkpJe3V', color: 'border-red-700' },
-            { id: 'sina', name: '新浪热榜', hashId: '4qv9zk1daK', color: 'border-red-500' }
+            { id: 'sykong', name: '手游那点事', hashId: 'n3moBXPdN5', color: 'border-teal-500' },
+            { id: 'gameres', name: 'GameRes游资网', hashId: 'ARe1Lyld7n', color: 'border-indigo-500' }
         ];
 
-        // 前端变得极其简单：只管发请求，绝不带 Headers，彻底绕过前端阻拦
         async function fetchViaBackend(url) {
             const response = await fetch(MY_PROXY + encodeURIComponent(url), { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.text();
         }
 
-        async function getRealTimeData(platform) {
+        async function getRealTimeData(platform, forceRefresh = false) {
+            // ==========================================
+            // 【省钱护盾】：30分钟本地记忆
+            // ==========================================
+            const CACHE_MINUTES = 30; 
+            const cacheKey = `omni_cache_${platform.id}`;
+            
+            if (!forceRefresh) {
+                const cachedData = localStorage.getItem(cacheKey);
+                if (cachedData) {
+                    const parsedCache = JSON.parse(cachedData);
+                    const now = new Date().getTime();
+                    // 如果没过期，直接使用缓存
+                    if (now - parsedCache.timestamp < CACHE_MINUTES * 60 * 1000) {
+                        console.log(`[Cache Hit] ${platform.name} - 零消耗加载`);
+                        return parsedCache.items;
+                    }
+                }
+            }
+
+            // ==========================================
+            // 【真实拉取】：缓存过期或强制刷新时执行
+            // ==========================================
             let items = [];
             let raw = '';
             const parser = new DOMParser();
 
             if (platform.hashId) {
-                // ==========================================
-                // 【国内 API】：通过你的后端代理直连榜眼数据的真正接口
-                // ==========================================
+                // 国内商业 API 极速拉取
                 const apiUrl = `https://api.tophubdata.com/nodes/${platform.hashId}`;
-                
                 raw = await fetchViaBackend(apiUrl);
                 let json;
                 try {
@@ -88,9 +114,7 @@
                     throw new Error("Invalid Tophub API Payload");
                 }
             } else {
-                // ==========================================
-                // 【海外铁三角】：原封不动，继续依靠后端解构
-                // ==========================================
+                // 海外原生解构
                 switch (platform.id) {
                     case 'reddit':
                         raw = await fetchViaBackend('https://www.reddit.com/r/all/hot.json?limit=15');
@@ -98,7 +122,6 @@
                             items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
                         });
                         break;
-
                     case 'twitter':
                         raw = await fetchViaBackend('https://trends24.in/united-states/');
                         const docTwitter = parser.parseFromString(raw, "text/html");
@@ -106,7 +129,6 @@
                             if(i < 15) items.push({ title: node.textContent.trim(), link: node.href });
                         });
                         break;
-
                     case 'imdb':
                         raw = await fetchViaBackend('https://api.themoviedb.org/3/trending/movie/day?api_key=15d2ea6d0dc1d476efbca3eba2b9bbfb');
                         JSON.parse(raw).results.slice(0, 15).forEach(m => {
@@ -117,16 +139,34 @@
             }
             
             if(items.length === 0) throw new Error("Parsed empty array");
+
+            // ==========================================
+            // 【写入缓存】：成功拉取后，立刻存入本地金库
+            // ==========================================
+            localStorage.setItem(cacheKey, JSON.stringify({
+                timestamp: new Date().getTime(),
+                items: items
+            }));
+
             return items;
         }
 
-        async function loadCard(platform, index) {
+        async function loadCard(platform, index, forceRefresh = false) {
             const container = document.getElementById('board-container');
-            const loadingText = platform.hashId ? `Routing_Backend...` : `Fetching_${platform.name}...`;
-            container.innerHTML += `<div id="card-${index}" class="h-[450px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">${loadingText}</span></div>`;
+            
+            // 如果是初始化加载且不是强制刷新，且本地有缓存，可以瞬间出结果，不显示 Fetching 动画
+            const hasCache = !forceRefresh && localStorage.getItem(`omni_cache_${platform.id}`);
+            
+            let cardElement = document.getElementById(`card-${index}`);
+            if (!cardElement) {
+                container.innerHTML += `<div id="card-${index}" class="h-[450px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Loading...</span></div>`;
+                cardElement = document.getElementById(`card-${index}`);
+            } else if (forceRefresh) {
+                cardElement.innerHTML = `<div class="h-full flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Force_Syncing_${platform.name}...</span></div>`;
+            }
 
             try {
-                const items = await getRealTimeData(platform);
+                const items = await getRealTimeData(platform, forceRefresh);
                 let html = `
                     <div class="h-[450px] bg-slate-900 game-border ${platform.color} rounded-lg flex flex-col overflow-hidden transition-all hover:translate-y-[-4px]">
                         <div class="p-3 bg-slate-800/80 flex justify-between items-center border-b-2 border-slate-800">
@@ -138,19 +178,28 @@
                 items.forEach(item => {
                     html += `<li class="border-b border-slate-800/50 pb-2 last:border-0"><a href="${item.link}" target="_blank" class="text-[11px] leading-relaxed hover:text-emerald-400 block tracking-tight font-sans text-slate-300 transition-colors"> > ${item.title}</a></li>`;
                 });
-                document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
+                cardElement.outerHTML = html + `</ul></div>`;
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
-                const errMsg = platform.hashId ? "Backend Verification Failed." : "Target Endpoint Blocked.";
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SYSTEM OFFLINE]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">${errMsg}</p></div>`;
+                const errMsg = platform.hashId ? "API Limit / Fetch Failed." : "Target Endpoint Blocked.";
+                cardElement.innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SYSTEM OFFLINE]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">${errMsg}</p></div>`;
+            }
+        }
+
+        // 强行刷新所有面板（会无视缓存，直接扣点数）
+        async function forceRefreshAll() {
+            console.log("!!! INITIATING FORCE REFRESH - COSTING API POINTS !!!");
+            for (let i = 0; i < platforms.length; i++) {
+                loadCard(platforms[i], i, true); 
             }
         }
 
         async function init() {
             for (let i = 0; i < platforms.length; i++) {
-                loadCard(platforms[i], i); 
+                loadCard(platforms[i], i, false); 
             }
         }
+        
         init();
     </script>
 </body>
