@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Omni-Matrix // DUAL ENGINE BACKEND EDITION</title>
+    <title>Omni-Matrix // DUAL ENGINE TRUE API</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -20,21 +20,22 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Omni-Matrix 15</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // BACKEND PROXY ENGINE ACTIVE
+                    <span class="animate-blink text-red-500">● LIVE</span> // TRUE COMMERCIAL API ACTIVE
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">INTL TRIO + TOPHUB DOMESTIC MATRIX</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">INTL TRIO + DOMESTIC 12 // YOUTUBE & TIKTOK PURGED</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
-        // 你的万能后端代理！现在它将同时负责海外网站和国内榜眼API的中转
+        // 你海外专用的极速后端代理
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
+        // 你的榜眼 VIP 金钥匙
         const TOPHUB_API_KEY = '657fc3c8b2782918892872580237c11d'; 
 
-        // 严格按照你的要求：海外只有前三个，后面全是你定制的国内硬核节点
+        // 严格按照你的要求：海外 3 个 + 国内定制 12 个
         const platforms = [
             // --- 绝不动摇的海外铁三角 ---
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
@@ -56,7 +57,7 @@
             { id: 'sina', name: '新浪热榜', hashId: '4qv9zk1daK', color: 'border-red-500' }
         ];
 
-        async function fetchViaBackend(url) {
+        async function fetchOverseasData(url) {
             const response = await fetch(MY_PROXY + encodeURIComponent(url), { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.text();
@@ -69,20 +70,46 @@
 
             if (platform.hashId) {
                 // ==========================================
-                // 【国内节点】：将榜眼 API 丢给 CF Worker 后端去请求
+                // 【国内节点】：拨打榜眼真实的商业后端地址
                 // ==========================================
-                const apiUrl = `https://api.tophub.today/v1/node?hash_id=${platform.hashId}&key=${TOPHUB_API_KEY}`;
+                const apiUrl = `https://api.tophubdata.com/nodes/${platform.hashId}`;
                 
-                // 关键点：由 Worker 代为请求，完美绕过前端跨域限制
-                raw = await fetchViaBackend(apiUrl);
-                const json = JSON.parse(raw);
-                
-                if (json && json.data && json.data.items) {
-                    json.data.items.slice(0, 15).forEach(item => {
-                        items.push({ title: item.title, link: item.url });
+                try {
+                    // 主力战术：前端直接携带 Authorization 头请求
+                    const res = await fetch(apiUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': TOPHUB_API_KEY
+                        },
+                        cache: 'no-store'
                     });
-                } else {
-                    throw new Error("Invalid Tophub API Payload");
+                    
+                    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+                    const json = await res.json();
+                    
+                    // 商业 API 直接返回纯净 JSON 数组
+                    const dataItems = json.data?.items || json.data || [];
+                    dataItems.slice(0, 15).forEach(item => {
+                        items.push({ title: item.title, link: item.url || item.link || '#' });
+                    });
+                } catch (err) {
+                    // 备用战术：如果榜眼服务器不允许前端跨域 (CORS)，
+                    // 直接动用支持 Header 转发的后端代理代为请求
+                    console.warn(`Direct fetch blocked for ${platform.name}, switching to backend relay...`);
+                    const fallbackProxy = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
+                    const res = await fetch(fallbackProxy, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': TOPHUB_API_KEY
+                        },
+                        cache: 'no-store'
+                    });
+                    if (!res.ok) throw new Error(`Backend Error: ${res.status}`);
+                    const json = await res.json();
+                    const dataItems = json.data?.items || json.data || [];
+                    dataItems.slice(0, 15).forEach(item => {
+                        items.push({ title: item.title, link: item.url || item.link || '#' });
+                    });
                 }
             } else {
                 // ==========================================
@@ -90,14 +117,14 @@
                 // ==========================================
                 switch (platform.id) {
                     case 'reddit':
-                        raw = await fetchViaBackend('https://www.reddit.com/r/all/hot.json?limit=15');
+                        raw = await fetchOverseasData('https://www.reddit.com/r/all/hot.json?limit=15');
                         JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
                             items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
                         });
                         break;
 
                     case 'twitter':
-                        raw = await fetchViaBackend('https://trends24.in/united-states/');
+                        raw = await fetchOverseasData('https://trends24.in/united-states/');
                         const docTwitter = parser.parseFromString(raw, "text/html");
                         docTwitter.querySelectorAll('.trend-card__list li a').forEach((node, i) => {
                             if(i < 15) items.push({ title: node.textContent.trim(), link: node.href });
@@ -105,7 +132,7 @@
                         break;
 
                     case 'imdb':
-                        raw = await fetchViaBackend('https://api.themoviedb.org/3/trending/movie/day?api_key=15d2ea6d0dc1d476efbca3eba2b9bbfb');
+                        raw = await fetchOverseasData('https://api.themoviedb.org/3/trending/movie/day?api_key=15d2ea6d0dc1d476efbca3eba2b9bbfb');
                         JSON.parse(raw).results.slice(0, 15).forEach(m => {
                             items.push({ title: m.title, link: `https://www.themoviedb.org/movie/${m.id}` });
                         });
@@ -119,7 +146,7 @@
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            const loadingText = platform.hashId ? `Routing_Backend...` : `Fetching_${platform.name}...`;
+            const loadingText = platform.hashId ? `Fetching_TopHub_API...` : `Fetching_${platform.name}...`;
             container.innerHTML += `<div id="card-${index}" class="h-[450px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">${loadingText}</span></div>`;
 
             try {
@@ -138,7 +165,7 @@
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
-                const errMsg = platform.hashId ? "API Limit or Key Expired." : "Target WAF block / Endpoint dead.";
+                const errMsg = platform.hashId ? "API Refused / Bad Endpoint." : "Target WAF block / Endpoint dead.";
                 document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SYSTEM OFFLINE]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">${errMsg}</p></div>`;
             }
         }
