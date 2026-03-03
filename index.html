@@ -30,12 +30,13 @@
     </div>
 
     <script>
-        // 你的金钥匙
+        // 你的专属 Cloudflare 金钥匙
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
         
-        // 终极万能代理 (使用 get 路径，完美解决 CORS 和套娃报错)
+        // 万能公共代理，用于处理极度难搞的跨域和渲染拦截
         const GOD_PROXY = 'https://api.allorigins.win/get?url=';
 
+        // 仅保留你指定的 5 个核心全球平台
         const platforms = [
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
             { id: 'youtube', name: 'YouTube Trend (US)', color: 'border-red-600' },
@@ -44,11 +45,8 @@
             { id: 'tiktok', name: 'TikTok Trend', color: 'border-pink-500' }
         ];
 
-        // 核心突破口：不管目标是 HTML 还是 JSON，强行拿回来解析
         async function fetchRawData(url, useGodProxy = false) {
             const fetchUrl = useGodProxy ? (GOD_PROXY + encodeURIComponent(url)) : (MY_PROXY + encodeURIComponent(url));
-            
-            // 加入随机数彻底打穿 CDN 缓存
             const nocacheUrl = fetchUrl + (fetchUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
             
             const response = await fetch(nocacheUrl);
@@ -57,13 +55,12 @@
             if (useGodProxy) {
                 const data = await response.json();
                 if (!data.contents) throw new Error('Proxy returns empty');
-                return data.contents; // AllOrigins 会把网页源码装在 contents 里返回
+                return data.contents; 
             } else {
                 return await response.text(); 
             }
         }
 
-        // 针对每个平台的“定制解剖刀”
         async function getRealTimeData(platformId) {
             let items = [];
             let raw = '';
@@ -71,7 +68,6 @@
 
             switch (platformId) {
                 case 'reddit':
-                    // Reddit 官方通道 (直接用你的代理，最稳)
                     raw = await fetchRawData('https://www.reddit.com/r/all/hot.json', false);
                     JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
                         items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
@@ -79,7 +75,6 @@
                     break;
 
                 case 'youtube':
-                    // Lemnoslife 提供的纯净原生 API
                     raw = await fetchRawData('https://yt.lemnoslife.com/trending', false);
                     JSON.parse(raw).items.slice(0, 15).forEach(v => {
                         items.push({ title: v.snippet.title, link: `https://www.youtube.com/watch?v=${v.id}` });
@@ -87,7 +82,6 @@
                     break;
 
                 case 'twitter':
-                    // 强行扒取 Trends24 美国区的网页源码 (使用万能代理防拉黑)
                     raw = await fetchRawData('https://trends24.in/united-states/', true);
                     const docTwitter = parser.parseFromString(raw, "text/html");
                     const tNodes = docTwitter.querySelectorAll('.trend-card__list li a');
@@ -97,17 +91,32 @@
                     break;
 
                 case 'tiktok':
-                    // TikWM 官方全球榜单 JSON
-                    raw = await fetchRawData('https://www.tikwm.com/api/feed/list?region=US', false);
-                    JSON.parse(raw).data.slice(0, 15).forEach(v => {
-                        // 提取视频标题，如果没有则显示用户名
-                        let title = v.title ? v.title.substring(0, 60) + '...' : `Trending Video by @${v.author.unique_id}`;
-                        items.push({ title: title, link: `https://www.tiktok.com/@${v.author.unique_id}/video/${v.id}` });
+                    // 抓取你指定的 TikTok Creative Center (美国区话题热门榜)
+                    raw = await fetchRawData('https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en?region=US', true);
+                    
+                    // React 页面底层数据解构：直接用正则匹配出 hashtag_name
+                    let tags = [];
+                    const regex = /"hashtag_name":"([^"]+)"/g;
+                    let match;
+                    while ((match = regex.exec(raw)) !== null && tags.length < 15) {
+                        // 去重过滤
+                        if(!tags.includes(match[1])) {
+                            tags.push(match[1]);
+                        }
+                    }
+
+                    if(tags.length === 0) throw new Error("Hashtags not found in DOM");
+
+                    // 组装成必能打开的官方 Hashtag 搜索链接
+                    tags.forEach(tag => {
+                        items.push({ 
+                            title: '#' + tag, 
+                            link: `https://www.tiktok.com/tag/${encodeURIComponent(tag)}` 
+                        });
                     });
                     break;
 
                 case 'imdb':
-                    // 直接扒取 Trakt.tv (基于 IMDb 数据的北美最大影迷站) 的实时趋势 HTML
                     raw = await fetchRawData('https://trakt.tv/movies/trending', true);
                     const docImdb = parser.parseFromString(raw, "text/html");
                     const mNodes = docImdb.querySelectorAll('.grid-item .titles h3 a');
@@ -146,7 +155,6 @@
         }
 
         async function init() {
-            // 降低并发，一个一个扒，假装成人类在慢慢打开网页
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
                 await new Promise(r => setTimeout(r, 600)); 
