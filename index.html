@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Omni-Matrix // DUAL ENGINE EDITION</title>
+    <title>Omni-Matrix // DUAL ENGINE BACKEND EDITION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -20,48 +20,43 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Omni-Matrix 15</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // HYBRID DUAL-ENGINE ACTIVE
+                    <span class="animate-blink text-red-500">● LIVE</span> // BACKEND PROXY ENGINE ACTIVE
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">INTL PROXY + TOPHUB COMMERCIAL API</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">INTL TRIO + TOPHUB DOMESTIC MATRIX</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
-        // 【左引擎】：用于海外铁三角的极速代理
+        // 你的万能后端代理！现在它将同时负责海外网站和国内榜眼API的中转
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
-        
-        // 【右引擎】：你的榜眼数据商业 API 密钥
         const TOPHUB_API_KEY = '657fc3c8b2782918892872580237c11d'; 
 
-        // 终极 15 大平台全景配置
+        // 严格按照你的要求：海外只有前三个，后面全是你定制的国内硬核节点
         const platforms = [
-            // --- 国际稳定阵地 (左引擎) ---
+            // --- 绝不动摇的海外铁三角 ---
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-100' },
             { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-500' },
 
-            // --- 国内泛娱乐大盘 (右引擎) ---
-            { id: 'weibo', name: '微博热搜', hashId: '4qv9zk1daK', color: 'border-red-500' },
+            // --- 你的定制国内全矩阵 ---
             { id: 'bilibili', name: 'Bilibili 全站', hashId: '74KvxwokxM', color: 'border-pink-400' },
             { id: 'xiaohongshu', name: '小红书热榜', hashId: 'L4MdA5ldxD', color: 'border-red-600' },
-            { id: 'douyin', name: '抖音热门', hashId: 'vWvoZNwa5a', color: 'border-purple-500' }, // 注：你没给抖音hash，这里我补了一个常用的，如果不对可随时替换
-            { id: 'wechat', name: '微信热文', hashId: 'WnBe01o371', color: 'border-green-500' },
-            { id: 'maoyan', name: '猫眼票房榜', hashId: '9JndkpJe3V', color: 'border-red-700' },
-
-            // --- 核心游戏垂类阵地 (右引擎) ---
             { id: '3dm', name: '3DM 游戏网', hashId: 'YqoXQR0vOD', color: 'border-orange-600' },
             { id: 'gcores', name: '机核网', hashId: 'wWmoOVYe4E', color: 'border-zinc-500' },
+            { id: 'sykong', name: '手游那点事', hashId: 'n3moBXPdN5', color: 'border-teal-500' },
             { id: 'gamersky', name: '游民星空', hashId: 'ARe1kXnv7n', color: 'border-blue-600' },
             { id: 'yys', name: '游研社', hashId: 'Om4ej8mvxE', color: 'border-blue-400' },
+            { id: 'gameres', name: 'GameRes游资网', hashId: 'ARe1Lyld7n', color: 'border-indigo-500' },
             { id: 'gouhuo', name: '篝火营地', hashId: 'KGoRRNzol6', color: 'border-yellow-600' },
-            { id: 'sykong', name: '手游那点事', hashId: 'n3moBXPdN5', color: 'border-teal-500' },
-            { id: 'gameres', name: 'GameRes游资网', hashId: 'ARe1Lyld7n', color: 'border-indigo-500' }
+            { id: 'wechat', name: '微信热文', hashId: 'WnBe01o371', color: 'border-green-500' },
+            { id: 'maoyan', name: '猫眼票房榜', hashId: '9JndkpJe3V', color: 'border-red-700' },
+            { id: 'sina', name: '新浪热榜', hashId: '4qv9zk1daK', color: 'border-red-500' }
         ];
 
-        async function fetchOverseasData(url) {
+        async function fetchViaBackend(url) {
             const response = await fetch(MY_PROXY + encodeURIComponent(url), { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.text();
@@ -69,57 +64,53 @@
 
         async function getRealTimeData(platform) {
             let items = [];
+            let raw = '';
+            const parser = new DOMParser();
 
-            // ==========================================
-            // 【右引擎启动】：如果是带有 hashId 的国内节点，直接打商业 API
-            // ==========================================
             if (platform.hashId) {
-                // 榜眼数据的标准 API Endpoint
+                // ==========================================
+                // 【国内节点】：将榜眼 API 丢给 CF Worker 后端去请求
+                // ==========================================
                 const apiUrl = `https://api.tophub.today/v1/node?hash_id=${platform.hashId}&key=${TOPHUB_API_KEY}`;
                 
-                const res = await fetch(apiUrl, { cache: 'no-store' });
-                if (!res.ok) throw new Error(`API Auth/Limit Error: ${res.status}`);
-                const json = await res.json();
+                // 关键点：由 Worker 代为请求，完美绕过前端跨域限制
+                raw = await fetchViaBackend(apiUrl);
+                const json = JSON.parse(raw);
                 
-                // 商业接口直接返回干净的 JSON 结构，秒解析
                 if (json && json.data && json.data.items) {
                     json.data.items.slice(0, 15).forEach(item => {
                         items.push({ title: item.title, link: item.url });
                     });
                 } else {
-                    throw new Error("Invalid API Payload");
+                    throw new Error("Invalid Tophub API Payload");
                 }
-                return items;
-            }
+            } else {
+                // ==========================================
+                // 【海外铁三角】：原封不动，稳如泰山
+                // ==========================================
+                switch (platform.id) {
+                    case 'reddit':
+                        raw = await fetchViaBackend('https://www.reddit.com/r/all/hot.json?limit=15');
+                        JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
+                            items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
+                        });
+                        break;
 
-            // ==========================================
-            // 【左引擎启动】：如果是不带 hashId 的海外节点，继续走极速代理和解构
-            // ==========================================
-            let raw = '';
-            const parser = new DOMParser();
+                    case 'twitter':
+                        raw = await fetchViaBackend('https://trends24.in/united-states/');
+                        const docTwitter = parser.parseFromString(raw, "text/html");
+                        docTwitter.querySelectorAll('.trend-card__list li a').forEach((node, i) => {
+                            if(i < 15) items.push({ title: node.textContent.trim(), link: node.href });
+                        });
+                        break;
 
-            switch (platform.id) {
-                case 'reddit':
-                    raw = await fetchOverseasData('https://www.reddit.com/r/all/hot.json?limit=15');
-                    JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
-                        items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
-                    });
-                    break;
-
-                case 'twitter':
-                    raw = await fetchOverseasData('https://trends24.in/united-states/');
-                    const docTwitter = parser.parseFromString(raw, "text/html");
-                    docTwitter.querySelectorAll('.trend-card__list li a').forEach((node, i) => {
-                        if(i < 15) items.push({ title: node.textContent.trim(), link: node.href });
-                    });
-                    break;
-
-                case 'imdb':
-                    raw = await fetchOverseasData('https://api.themoviedb.org/3/trending/movie/day?api_key=15d2ea6d0dc1d476efbca3eba2b9bbfb');
-                    JSON.parse(raw).results.slice(0, 15).forEach(m => {
-                        items.push({ title: m.title, link: `https://www.themoviedb.org/movie/${m.id}` });
-                    });
-                    break;
+                    case 'imdb':
+                        raw = await fetchViaBackend('https://api.themoviedb.org/3/trending/movie/day?api_key=15d2ea6d0dc1d476efbca3eba2b9bbfb');
+                        JSON.parse(raw).results.slice(0, 15).forEach(m => {
+                            items.push({ title: m.title, link: `https://www.themoviedb.org/movie/${m.id}` });
+                        });
+                        break;
+                }
             }
             
             if(items.length === 0) throw new Error("Parsed empty array");
@@ -128,11 +119,10 @@
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            const loadingText = platform.hashId ? `Connecting_TopHub...` : `Fetching_${platform.name}...`;
+            const loadingText = platform.hashId ? `Routing_Backend...` : `Fetching_${platform.name}...`;
             container.innerHTML += `<div id="card-${index}" class="h-[450px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">${loadingText}</span></div>`;
 
             try {
-                // 核心改动：把整个 platform 对象传进去供引擎判断
                 const items = await getRealTimeData(platform);
                 let html = `
                     <div class="h-[450px] bg-slate-900 game-border ${platform.color} rounded-lg flex flex-col overflow-hidden transition-all hover:translate-y-[-4px]">
@@ -154,7 +144,6 @@
         }
 
         async function init() {
-            // 使用异步并发，这 15 个卡片几乎会在 1 秒内同时“唰”地一下全部亮起！
             for (let i = 0; i < platforms.length; i++) {
                 loadCard(platforms[i], i); 
             }
