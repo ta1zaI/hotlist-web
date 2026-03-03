@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Intel Matrix // Real-Time</title>
+    <title>Global Intel Matrix // LIVE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
         .game-border { border: 2px solid #1e293b; box-shadow: 4px 4px 0px #0f172a; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .animate-blink { animation: blink 1.5s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+        .animate-blink { animation: blink 1.2s infinite; }
     </style>
 </head>
 <body class="bg-[#0f172a] p-4 md:p-8 font-mono text-slate-300">
@@ -20,69 +20,80 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Global 5 Hotlist</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink">●</span> LIVE FEED // NODE: BILLOWING-SALAD
+                    <span class="animate-blink text-red-500">● LIVE</span> // SECURE MULTI-PROXY ENABLED
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic">REAL-TIME SYNC ACTIVE</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">REAL-TIME SYNC ACTIVE</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
-        const PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
+        // 【核心防御】双重代理层：自己的 CF 挂了，自动用备用公共代理顶上
+        const PROXIES = [
+            'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=',
+            'https://api.allorigins.win/raw?url=' 
+        ];
 
-        // RSSHub 的多个顶级存活镜像
+        // 镜像池
         const MIRRORS = [
+            'https://rsshub.rssforever.com',
             'https://hub.slarker.me',
-            'https://rsshub.app',
             'https://rss.shab.fun',
-            'https://rsshub.anyant.com'
+            'https://rsshub.liubing.me'
         ];
 
+        // 平台配置（锁死你需要的 5 个外网核心）
         const platforms = [
-            // Reddit 官方实时热榜 (无缓存)
-            { id: 'reddit', name: 'Reddit /r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json?limit=15', color: 'border-orange-500' },
-            // YouTube 实时 Trending (US 区域)
-            { id: 'youtube', name: 'YouTube Trend (US)', route: '/youtube/trending/US', color: 'border-red-600' },
-            // IMDb 实时热门电影
-            { id: 'imdb', name: 'IMDb Popular', route: '/imdb/trending/movie', color: 'border-yellow-500' },
-            // Twitter 美国区热搜 (WOEID: 23424977 为美国)
-            { id: 'twitter', name: 'X Trend (US)', route: '/twitter/trends/23424977', color: 'border-slate-100' },
-            // TikTok 全球热榜
-            { id: 'tiktok', name: 'TikTok Trend', route: '/tiktok/trending/worldwide', color: 'border-pink-500' }
+            { id: 'reddit', name: 'Reddit /r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', color: 'border-orange-500' },
+            { id: 'youtube', name: 'YouTube Trend (US)', type: 'json-yt', url: 'https://yt.lemnoslife.com/trending', color: 'border-red-600' },
+            { id: 'imdb', name: 'IMDb Popular', type: 'xml', route: '/imdb/trending/movie', color: 'border-yellow-500' },
+            { id: 'twitter', name: 'X Trend (US)', type: 'xml', route: '/twitter/trends/23424977', color: 'border-slate-100' },
+            { id: 'tiktok', name: 'TikTok Trend', type: 'xml', route: '/tiktok/trending/worldwide', color: 'border-pink-500' }
         ];
 
-        async function fetchWithRetry(platform, sourceIndex = 0) {
-            // 生成毫秒级时间戳，强制打穿缓存，确保拿到实时数据
-            const timestamp = Date.now(); 
-            const baseUrl = platform.url || (MIRRORS[sourceIndex] + platform.route);
-            const targetUrl = baseUrl.includes('?') ? `${baseUrl}&_t=${timestamp}` : `${baseUrl}?_t=${timestamp}`;
+        // 究极轮询引擎：尝试不同节点 + 尝试不同代理
+        async function fetchWithResilience(platform) {
+            let targetUrls = platform.url ? [platform.url] : MIRRORS.map(m => m + platform.route);
 
-            try {
-                // 将强力无缓存的链接通过你的 CF 代理发出
-                const response = await fetch(PROXY + encodeURIComponent(targetUrl));
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return platform.type === 'json' ? await response.json() : await response.text();
-            } catch (e) {
-                // 如果当前节点封锁了，自动无缝切换下一个节点
-                if (sourceIndex < MIRRORS.length - 1) {
-                    return await fetchWithRetry(platform, sourceIndex + 1);
+            for (let targetUrl of targetUrls) {
+                for (let proxy of PROXIES) {
+                    try {
+                        const fetchUrl = proxy + encodeURIComponent(targetUrl);
+                        // { cache: 'no-store' } 保证每次拿到最新数据，且不破坏 URL 路由结构
+                        const response = await fetch(fetchUrl, { cache: 'no-store' });
+                        
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        
+                        let data = platform.type.includes('json') ? await response.json() : await response.text();
+                        
+                        // 确保拿到的是真实的 XML 而不是代理报错网页
+                        if (platform.type === 'xml' && !data.includes('<item')) throw new Error('Invalid XML');
+                        
+                        return data;
+                    } catch (e) {
+                        console.warn(`[Proxy/Node Failed] ${targetUrl} via ${proxy}`);
+                        continue; // 当前组合失败，尝试下一种组合
+                    }
                 }
-                throw e;
             }
+            throw new Error('All combinations exhausted');
         }
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 tracking-tighter font-bold">Syncing_Live_${platform.name}...</span></div>`;
+            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-slate-500 tracking-tighter font-bold">Connecting_${platform.name}...</span></div>`;
 
             try {
-                const data = await fetchWithRetry(platform);
+                const data = await fetchWithResilience(platform);
                 let items = [];
 
                 if (platform.type === 'json') {
                     items = data.data.children.map(c => ({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
+                } else if (platform.type === 'json-yt') {
+                    // 专门处理 YouTube 原生接口
+                    items = data.items.map(v => ({ title: v.snippet.title, link: `https://www.youtube.com/watch?v=${v.id}` }));
                 } else {
                     const doc = new DOMParser().parseFromString(data, "text/xml");
                     const nodes = doc.querySelectorAll("item");
@@ -90,6 +101,8 @@
                         if(i < 15) items.push({ title: n.querySelector("title")?.textContent, link: n.querySelector("link")?.textContent }); 
                     });
                 }
+
+                if (items.length === 0) throw new Error('Empty Data');
 
                 let html = `
                     <div class="h-[500px] bg-slate-900 game-border ${platform.color} rounded-lg flex flex-col overflow-hidden transition-all hover:translate-y-[-4px]">
@@ -99,20 +112,20 @@
                         </div>
                         <ul class="p-3 space-y-3 overflow-y-auto flex-1 custom-scrollbar">
                 `;
-                items.forEach(item => {
+                items.slice(0, 15).forEach(item => {
                     html += `<li class="border-b border-slate-800/50 pb-2 last:border-0"><a href="${item.link}" target="_blank" class="text-[11px] leading-tight hover:text-emerald-400 block tracking-tight font-sans text-slate-300 transition-colors"> > ${item.title}</a></li>`;
                 });
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[LIVE SYNC FAILED]</span><p class="text-[9px] text-slate-600 mt-2">All routing nodes blocked by origin firewall.</p></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SYNC FAILED]</span><p class="text-[9px] text-slate-600 mt-2">All routes & proxies blocked.</p></div>`;
             }
         }
 
         async function init() {
-            // 排队加载，防止并发触发大厂的反爬虫机制
+            // 依然保持错峰请求，避免瞬间高并发触发风控
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
-                await new Promise(r => setTimeout(r, 600)); 
+                await new Promise(r => setTimeout(r, 300)); 
             }
         }
         init();
