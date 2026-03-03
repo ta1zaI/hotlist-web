@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Intel Matrix // FINAL STRIKE</title>
+    <title>Global Intel Matrix // 4-NODE EDITION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -15,18 +15,18 @@
 </head>
 <body class="bg-[#0f172a] p-4 md:p-8 font-mono text-slate-300">
 
-    <div class="max-w-[1600px] mx-auto">
+    <div class="max-w-[1400px] mx-auto">
         <header class="mb-10 flex flex-col md:flex-row justify-between items-end border-b-2 border-slate-800 pb-4">
             <div>
-                <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Global 5 Hotlist</h1>
+                <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Omni-Matrix 4</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
                     <span class="animate-blink text-red-500">● LIVE</span> // ASYMMETRIC SCRAPING ENGINE
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">ALL SYSTEMS GO</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">YOUTUBE NODE OFFLINE // 4 SYSTEMS ACTIVE</div>
         </header>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container"></div>
     </div>
 
     <script>
@@ -36,11 +36,9 @@
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-100' },
             { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-500' },
-            { id: 'youtube', name: 'YouTube Trend (US)', color: 'border-red-600' },
             { id: 'tiktok', name: 'TikTok Trend (7D)', color: 'border-pink-500' }
         ];
 
-        // 仅供 Reddit, Twitter, IMDb 使用的基础代理
         async function fetchRawData(url) {
             const response = await fetch(MY_PROXY + encodeURIComponent(url), { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -54,7 +52,7 @@
 
             switch (platformId) {
                 // ==========================================
-                // 【绝不触碰区】：完美存活的 Reddit, Twitter, IMDb
+                // 【稳如磐石区】：Reddit, Twitter, IMDb
                 // ==========================================
                 case 'reddit':
                     raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15');
@@ -80,46 +78,33 @@
                     break;
 
                 // ==========================================
-                // 【精准修复区】：YouTube 和 TikTok 特效药
+                // 【死磕到底区】：TikTok 官方创意中心话题榜
                 // ==========================================
-                case 'youtube':
-                    // 【特效药】：Lemnoslife 官方自带跨域允许，我们直接让浏览器发请求，绕开 CF 代理，杜绝 522 报错！
-                    const ytRes = await fetch('https://yt.lemnoslife.com/videos?part=snippet&chart=mostPopular&regionCode=US&maxResults=15', { cache: 'no-store' });
-                    if (!ytRes.ok) throw new Error("YouTube API failed");
-                    const ytJson = await ytRes.json();
-                    ytJson.items.forEach(v => {
-                        items.push({ title: v.snippet.title, link: `https://www.youtube.com/watch?v=${v.id}` });
-                    });
-                    break;
-
                 case 'tiktok':
-                    // 【特效药】：绝对锁定你要求的“商业创意中心”近7天话题！
-                    // 我们直接请求它页面底层的 JSON API 接口
+                    // 这是你截图页面的官方原生底层数据接口
                     const tkApiUrl = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/hashtag/list?period=7&page=1&limit=15&country_code=US';
                     
                     try {
-                        // 因为你的 CF 代理被 TikTok 拉黑了，这里专为 TikTok 换上备用跳板
-                        const tkRes = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(tkApiUrl), { cache: 'no-store' });
-                        const tkProxyData = await tkRes.json();
+                        // 优先尝试使用你的 CF 代理获取原生 JSON
+                        const tkRes = await fetch(MY_PROXY + encodeURIComponent(tkApiUrl), { cache: 'no-store' });
+                        if (!tkRes.ok) throw new Error("CF Proxy Blocked by TikTok");
                         
-                        // AllOrigins 会把 JSON 作为字符串放在 contents 里返回
-                        const tkJson = JSON.parse(tkProxyData.contents);
-                        
-                        if (tkJson && tkJson.data && tkJson.data.list) {
-                            tkJson.data.list.forEach(tag => {
-                                items.push({ 
-                                    title: '#' + tag.hashtag_name, 
-                                    link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` 
-                                });
+                        const tkJson = await tkRes.json();
+                        tkJson.data.list.forEach(tag => {
+                            items.push({ 
+                                title: '#' + tag.hashtag_name, 
+                                link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` 
                             });
-                        } else {
-                            throw new Error("Invalid TikTok JSON Structure");
-                        }
+                        });
                     } catch (e) {
-                        // 如果跳板失败，再试一次通过你的专属代理
-                        const tkResFallback = await fetchRawData(tkApiUrl);
-                        const tkJsonFallback = JSON.parse(tkResFallback);
-                        tkJsonFallback.data.list.forEach(tag => {
+                        console.warn("CF Proxy failed for TikTok, engaging secondary fallback...", e);
+                        
+                        // 终极备选：如果你的 CF 被封，尝试用 corsproxy 强行跨域
+                        const fallbackRes = await fetch('https://corsproxy.io/?' + encodeURIComponent(tkApiUrl), { cache: 'no-store' });
+                        if (!fallbackRes.ok) throw new Error("All proxies blocked by TikTok");
+                        
+                        const fallbackJson = await fallbackRes.json();
+                        fallbackJson.data.list.forEach(tag => {
                             items.push({ 
                                 title: '#' + tag.hashtag_name, 
                                 link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` 
