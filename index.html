@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Omni-Matrix // DOM EXTRACTION EDITION</title>
+    <title>Omni-Matrix // SURGICAL EXTRACTION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -20,10 +20,10 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Omni-Matrix 4</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // VISUAL EXTRACTION ENGINE
+                    <span class="animate-blink text-red-500">● LIVE</span> // SMART LEAF-NODE EXTRACTION
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">WAF DEFEATED // ALL SYSTEMS NOMINAL</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">WAF DEFEATED // DATA PURIFIED</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container"></div>
@@ -31,7 +31,7 @@
 
     <script>
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
-        // 你的神级密钥
+        // 你的破壁金钥匙
         const SCRAPER_API_KEY = '55cc9fdf6a593f6134c563837a4ace68'; 
 
         const platforms = [
@@ -54,7 +54,7 @@
 
             switch (platformId) {
                 // ==========================================
-                // 【稳如磐石区】：Reddit, Twitter, IMDb (绝对不动)
+                // 【稳如磐石区】：Reddit, Twitter, IMDb (绝对安全)
                 // ==========================================
                 case 'reddit':
                     raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15');
@@ -80,61 +80,69 @@
                     break;
 
                 // ==========================================
-                // 【终极收割区】：TikTok 视觉文字提取
+                // 【外科手术区】：TikTok 纯净切割
                 // ==========================================
                 case 'tiktok':
                     let tags = [];
                     const tkTargetUrl = 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en?domain=country&countryCode=US&period=7';
                     
-                    // 开启高级住宅IP与渲染模式，确保页面加载出视觉元素
                     const ultimateScraperUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(tkTargetUrl)}&country_code=us&premium=true&render=true`;
                     
                     const res = await fetch(ultimateScraperUrl, { cache: 'no-store' });
                     if (!res.ok) throw new Error("ScraperAPI Network Error");
                     raw = await res.text();
                     
-                    // 战术 A：尝试多种底层的 JSON 键值名
-                    const regexList = [
-                        /"hashtag_name":"([^"]+)"/g, 
-                        /"keyword":"([^"]+)"/g, 
-                        /"trend_name":"([^"]+)"/g,
-                        /"topic":"([^"]+)"/g
-                    ];
+                    const docTk = parser.parseFromString(raw, "text/html");
                     
-                    for (let regex of regexList) {
-                        let match;
-                        while ((match = regex.exec(raw)) !== null) {
-                            let tagStr = match[1].replace(/\\u[\dA-F]{4}/gi, (m) => String.fromCharCode(parseInt(m.replace(/\\u/g, ''), 16)));
-                            if (!tags.includes(tagStr) && tagStr.length > 1 && !tagStr.includes(' ')) {
-                                tags.push(tagStr);
+                    // 1. 彻底摧毁所有可能干扰的底层代码（移除 CSS样式、JS脚本、SVG图标代码）
+                    docTk.querySelectorAll('script, style, svg, path, symbol, link, meta, noscript').forEach(el => el.remove());
+                    
+                    // 2. 智能叶子节点扫描：防止文本粘连 (punch+sports)
+                    let lastWasHash = false;
+                    docTk.querySelectorAll('*').forEach(el => {
+                        // 只抓取没有子元素的“最末端文本”，保证文字独立
+                        if (el.children.length === 0 && el.textContent) {
+                            let text = el.textContent.trim().toLowerCase();
+                            if (!text) return;
+
+                            if (text === '#') {
+                                lastWasHash = true;
+                            } else if (lastWasHash) {
+                                let tag = text.split(/[\s,]+/)[0];
+                                // 过滤掉颜色代码(如 fe2c55) 和过短的垃圾符号
+                                if (tag.length > 2 && !/^([a-f0-9]{3}|[a-f0-9]{6})$/i.test(tag) && !tags.includes(tag)) {
+                                    tags.push(tag);
+                                }
+                                lastWasHash = false;
+                            } else if (text.startsWith('#') && text.length > 1) {
+                                let tag = text.replace(/^#\s*/, '').split(/[\s,]+/)[0];
+                                if (tag.length > 2 && !/^([a-f0-9]{3}|[a-f0-9]{6})$/i.test(tag) && !tags.includes(tag)) {
+                                    tags.push(tag);
+                                }
+                            } else {
+                                lastWasHash = false;
                             }
                         }
-                        if (tags.length >= 5) break; 
-                    }
+                    });
 
-                    // 战术 B：【终极视觉提取】如果底层变量名被混淆了，直接抽取网页渲染后的纯文本！
-                    if (tags.length === 0) {
-                        const docTk = parser.parseFromString(raw, "text/html");
-                        // 提取网页的纯文本
-                        const pageText = docTk.body ? docTk.body.textContent : raw;
-                        
-                        // 就像人眼看网页一样，寻找类似 "# olympics" 或 "#hockey" 这样的结构
-                        const visualRegex = /#\s*([a-zA-Z0-9_]+)/g;
-                        let match;
-                        while ((match = visualRegex.exec(pageText)) !== null) {
-                            let tagStr = match[1].toLowerCase();
-                            if(!tags.includes(tagStr) && tagStr.length > 1) {
-                                tags.push(tagStr);
+                    // 3. 后备方案：从底层超链接里暴力嗅探
+                    if (tags.length < 5) {
+                        const linkRegex = /\/hashtag\/([a-zA-Z0-9_]+)(?:\/|\?|")/g;
+                        let m;
+                        while ((m = linkRegex.exec(raw)) !== null) {
+                            let tag = m[1].toLowerCase();
+                            // 排除系统固定词
+                            if (tag !== 'pc' && tag !== 'en' && tag !== 'zh' && tag.length > 2 && !tags.includes(tag)) {
+                                tags.push(tag);
                             }
                         }
                     }
 
                     if (tags.length === 0) {
-                        console.error("TikTok Extraction Failed. HTML Dump:", raw.substring(0, 1500));
                         throw new Error("Format Changed - No Tags Found");
                     }
 
-                    // 完美组装
+                    // 完美组装呈现
                     tags.slice(0, 15).forEach(tag => {
                         items.push({ 
                             title: '#' + tag, 
@@ -150,7 +158,7 @@
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            const loadingText = platform.id === 'tiktok' ? `Extracting_DOM_${platform.name}...` : `Fetching_${platform.name}...`;
+            const loadingText = platform.id === 'tiktok' ? `Purifying_DOM_${platform.name}...` : `Fetching_${platform.name}...`;
             container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">${loadingText}</span></div>`;
 
             try {
