@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Intel Matrix // DIRECT FEED</title>
+    <title>Global Intel Matrix // DIRECT SCRAPE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -20,23 +20,19 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Global 5 Hotlist</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // DOM SCRAPING ENGINE ENABLED
+                    <span class="animate-blink text-red-500">● LIVE</span> // DOM SCRAPING ENGINE V6
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">BYPASSING ALL FIREWALLS</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">PROXY: BILLOWING-SALAD (ACTIVE)</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
-        // 你的专属 Cloudflare 金钥匙
+        // 核心：只用你自己的专属代理，绝对不套娃！
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
-        
-        // 万能公共代理，用于处理极度难搞的跨域和渲染拦截
-        const GOD_PROXY = 'https://api.allorigins.win/get?url=';
 
-        // 仅保留你指定的 5 个核心全球平台
         const platforms = [
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
             { id: 'youtube', name: 'YouTube Trend (US)', color: 'border-red-600' },
@@ -45,20 +41,16 @@
             { id: 'tiktok', name: 'TikTok Trend', color: 'border-pink-500' }
         ];
 
-        async function fetchRawData(url, useGodProxy = false) {
-            const fetchUrl = useGodProxy ? (GOD_PROXY + encodeURIComponent(url)) : (MY_PROXY + encodeURIComponent(url));
-            const nocacheUrl = fetchUrl + (fetchUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
-            
-            const response = await fetch(nocacheUrl);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            
-            if (useGodProxy) {
-                const data = await response.json();
-                if (!data.contents) throw new Error('Proxy returns empty');
-                return data.contents; 
-            } else {
-                return await response.text(); 
+        // 基础抓取函数：可选择是否带时间戳防止 404
+        async function fetchRawData(url, useTimestamp = true) {
+            let targetUrl = url;
+            if (useTimestamp) {
+                targetUrl += (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
             }
+            // 加上 cache: 'no-store' 强行要求浏览器不使用缓存
+            const response = await fetch(MY_PROXY + encodeURIComponent(targetUrl), { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.text();
         }
 
         async function getRealTimeData(platformId) {
@@ -68,13 +60,15 @@
 
             switch (platformId) {
                 case 'reddit':
-                    raw = await fetchRawData('https://www.reddit.com/r/all/hot.json', false);
+                    // Reddit 官方实时 JSON
+                    raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15', true);
                     JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
                         items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
                     });
                     break;
 
                 case 'youtube':
+                    // YouTube 原生 JSON 接口 (坚决不加时间戳，防止报 404)
                     raw = await fetchRawData('https://yt.lemnoslife.com/trending', false);
                     JSON.parse(raw).items.slice(0, 15).forEach(v => {
                         items.push({ title: v.snippet.title, link: `https://www.youtube.com/watch?v=${v.id}` });
@@ -82,6 +76,7 @@
                     break;
 
                 case 'twitter':
+                    // 扒取北美实时推特热搜榜网页
                     raw = await fetchRawData('https://trends24.in/united-states/', true);
                     const docTwitter = parser.parseFromString(raw, "text/html");
                     const tNodes = docTwitter.querySelectorAll('.trend-card__list li a');
@@ -91,23 +86,30 @@
                     break;
 
                 case 'tiktok':
-                    // 抓取你指定的 TikTok Creative Center (美国区话题热门榜)
-                    raw = await fetchRawData('https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en?region=US', true);
+                    // 你指定的 TikTok 商业创意中心 (中文页)
+                    raw = await fetchRawData('https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/zh', true);
                     
-                    // React 页面底层数据解构：直接用正则匹配出 hashtag_name
                     let tags = [];
-                    const regex = /"hashtag_name":"([^"]+)"/g;
-                    let match;
-                    while ((match = regex.exec(raw)) !== null && tags.length < 15) {
-                        // 去重过滤
-                        if(!tags.includes(match[1])) {
-                            tags.push(match[1]);
+                    // 多重正则暴力解构：防止 TikTok 更改 JSON 字段名
+                    const regexList = [
+                        /"hashtag_name":"([^"]+)"/g, 
+                        /"keyword":"([^"]+)"/g, 
+                        /"trend_name":"([^"]+)"/g
+                    ];
+                    
+                    for (let regex of regexList) {
+                        let match;
+                        while ((match = regex.exec(raw)) !== null && tags.length < 15) {
+                            if(!tags.includes(match[1]) && match[1].length > 1) {
+                                tags.push(match[1]);
+                            }
                         }
+                        if (tags.length > 0) break; // 只要有一种正则匹配成功，就停止
                     }
 
-                    if(tags.length === 0) throw new Error("Hashtags not found in DOM");
+                    if(tags.length === 0) throw new Error("DOM Structure Changed or Blocked");
 
-                    // 组装成必能打开的官方 Hashtag 搜索链接
+                    // 组装成必能打开的官方话题链接
                     tags.forEach(tag => {
                         items.push({ 
                             title: '#' + tag, 
@@ -117,6 +119,7 @@
                     break;
 
                 case 'imdb':
+                    // 直接扒取基于 IMDb 的北美影迷热榜网页 Trakt
                     raw = await fetchRawData('https://trakt.tv/movies/trending', true);
                     const docImdb = parser.parseFromString(raw, "text/html");
                     const mNodes = docImdb.querySelectorAll('.grid-item .titles h3 a');
@@ -126,13 +129,13 @@
                     break;
             }
             
-            if(items.length === 0) throw new Error("Parsed empty array");
+            if(items.length === 0) throw new Error("Empty Data Parsed");
             return items;
         }
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Scraping_${platform.name}...</span></div>`;
+            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 font-bold tracking-widest">Scraping_Live_${platform.name}...</span></div>`;
 
             try {
                 const items = await getRealTimeData(platform.id);
@@ -150,14 +153,15 @@
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SCRAPE FAILED]</span><p class="text-[9px] text-slate-600 mt-2">Target structure mutated or blocked.</p></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[SCRAPE FAILED]</span><p class="text-[9px] text-slate-600 mt-2">Source layout mutated or access denied.</p></div>`;
             }
         }
 
         async function init() {
+            // 一个接一个地请求，防止你的 CF 代理瞬间并发过高触发目标站的防火墙
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
-                await new Promise(r => setTimeout(r, 600)); 
+                await new Promise(r => setTimeout(r, 500)); 
             }
         }
         init();
