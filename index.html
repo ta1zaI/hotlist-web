@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Omni-Matrix // PROFESSIONAL EDITION</title>
+    <title>Omni-Matrix // SCRAPER API EDITION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -23,17 +23,15 @@
                     <span class="animate-blink text-red-500">● LIVE</span> // RESIDENTIAL SCRAPE ENGINE ENABLED
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">YOUTUBE DROPPED // TIKTOK WAF BYPASS READY</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">TIKTOK WAF BYPASS ACTIVE</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container"></div>
     </div>
 
     <script>
-        // 你的专属 CF 代理 (用于处理不需要伪装装家庭 IP 的站点)
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
-
-        // ⚠️ 在这里填入你申请的免费 API Key
+        // 已注入专属家庭宽带节点密钥
         const SCRAPER_API_KEY = '55cc9fdf6a593f6134c563837a4ace68'; 
 
         const platforms = [
@@ -82,34 +80,48 @@
                     break;
 
                 // ==========================================
-                // 【顶级突围区】：TikTok 官方创意中心话题榜
+                // 【顶级突围区】：TikTok 官方网页硬解构
                 // ==========================================
                 case 'tiktok':
-                    if (SCRAPER_API_KEY === '替换成你的API_KEY') {
-                        throw new Error("Missing ScraperAPI Key");
-                    }
-
-                    // TikTok 广告中心底层极速 JSON 接口
-                    const tkApiUrl = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/hashtag/list?period=7&page=1&limit=15&country_code=US';
+                    // 目标锁定：官方商业创意中心前端网页
+                    const tkTargetUrl = 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/zh?period=7&region=US';
                     
-                    // 使用 ScraperAPI 发起请求，WAF 会把你当成正在上网的美国家庭用户
-                    const scraperUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(tkApiUrl)}&render=false`;
+                    // 使用 ScraperAPI 发起物理节点请求
+                    const scraperUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(tkTargetUrl)}&render=false`;
                     
                     const res = await fetch(scraperUrl, { cache: 'no-store' });
                     if (!res.ok) throw new Error("ScraperAPI blocked or failed");
                     
-                    const tkJson = await res.json();
+                    // 拿到网页纯 HTML 源码
+                    raw = await res.text();
                     
-                    if (tkJson && tkJson.data && tkJson.data.list) {
-                        tkJson.data.list.slice(0, 15).forEach(tag => {
-                            items.push({ 
-                                title: '#' + tag.hashtag_name, 
-                                link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` 
-                            });
-                        });
-                    } else {
-                        throw new Error("Invalid TikTok JSON Structure");
+                    let tags = [];
+                    // 使用正则在源码中猎杀热门话题
+                    const regexList = [/"hashtag_name":"([^"]+)"/g, /"keyword":"([^"]+)"/g];
+                    
+                    for (let regex of regexList) {
+                        let match;
+                        while ((match = regex.exec(raw)) !== null && tags.length < 15) {
+                            // 解码可能存在的中文/特殊符号
+                            let tagStr = match[1].replace(/\\u[\dA-F]{4}/gi, (m) => String.fromCharCode(parseInt(m.replace(/\\u/g, ''), 16)));
+                            if(!tags.includes(tagStr) && tagStr.length > 1) {
+                                tags.push(tagStr);
+                            }
+                        }
+                        if (tags.length > 0) break;
                     }
+
+                    if (tags.length === 0) {
+                        throw new Error("Target Structure Mutated / Scraper Blocked");
+                    }
+
+                    // 组装成必能打开的话题链接
+                    tags.slice(0, 15).forEach(tag => {
+                        items.push({ 
+                            title: '#' + tag, 
+                            link: `https://www.tiktok.com/tag/${encodeURIComponent(tag)}` 
+                        });
+                    });
                     break;
             }
             
@@ -137,11 +149,7 @@
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
-                let errorMsg = err.message === "Missing ScraperAPI Key" 
-                    ? "WAF ACTIVE. REQUIRES RESIDENTIAL PROXY API KEY." 
-                    : "Target WAF block / Endpoint dead.";
-                
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[FIREWALL BLOCK]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">${errorMsg}</p></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[FIREWALL BLOCK]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">Target WAF block / Endpoint dead.</p></div>`;
             }
         }
 
