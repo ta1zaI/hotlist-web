@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Intel Matrix // FINAL</title>
+    <title>Global Intel Matrix // FINAL STRIKE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -20,10 +20,10 @@
             <div>
                 <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Global 5 Hotlist</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // NATIVE JSON ENGINE
+                    <span class="animate-blink text-red-500">● LIVE</span> // ASYMMETRIC SCRAPING ENGINE
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">PROXY: BILLOWING-SALAD (ACTIVE)</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">ALL SYSTEMS GO</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container"></div>
@@ -40,6 +40,7 @@
             { id: 'tiktok', name: 'TikTok Trend (7D)', color: 'border-pink-500' }
         ];
 
+        // 仅供 Reddit, Twitter, IMDb 使用的基础代理
         async function fetchRawData(url) {
             const response = await fetch(MY_PROXY + encodeURIComponent(url), { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -53,7 +54,7 @@
 
             switch (platformId) {
                 // ==========================================
-                // 以下三个是你已经跑通的，一字不改，绝对锁定！
+                // 【绝不触碰区】：完美存活的 Reddit, Twitter, IMDb
                 // ==========================================
                 case 'reddit':
                     raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15');
@@ -79,71 +80,52 @@
                     break;
 
                 // ==========================================
-                // 以下两个是专门为你精准修复的终极突破口
+                // 【精准修复区】：YouTube 和 TikTok 特效药
                 // ==========================================
                 case 'youtube':
-                    // 节点轮询池：防止单个 API 节点宕机报 404
-                    const ytNodes = [
-                        'https://pipedapi.kavin.rocks/trending?region=US',
-                        'https://pipedapi.tokhmi.xyz/trending?region=US',
-                        'https://piped-api.garudalinux.org/trending?region=US',
-                        'https://pipedapi.smnz.de/trending?region=US'
-                    ];
-                    let ytParsed = false;
-                    for (let node of ytNodes) {
-                        try {
-                            raw = await fetchRawData(node);
-                            let json = JSON.parse(raw);
-                            if (json.length > 0) {
-                                json.slice(0, 15).forEach(v => {
-                                    items.push({ title: v.title, link: `https://www.youtube.com${v.url}` });
-                                });
-                                ytParsed = true;
-                                break; // 拿到数据立刻跳出循环
-                            }
-                        } catch (e) {
-                            console.warn(`YouTube node ${node} failed, trying next...`);
-                        }
-                    }
-                    if (!ytParsed) throw new Error("All YouTube nodes failed");
+                    // 【特效药】：Lemnoslife 官方自带跨域允许，我们直接让浏览器发请求，绕开 CF 代理，杜绝 522 报错！
+                    const ytRes = await fetch('https://yt.lemnoslife.com/videos?part=snippet&chart=mostPopular&regionCode=US&maxResults=15', { cache: 'no-store' });
+                    if (!ytRes.ok) throw new Error("YouTube API failed");
+                    const ytJson = await ytRes.json();
+                    ytJson.items.forEach(v => {
+                        items.push({ title: v.snippet.title, link: `https://www.youtube.com/watch?v=${v.id}` });
+                    });
                     break;
 
                 case 'tiktok':
-                    // 完全锁定你截图中的 URL
-                    const tkHtmlUrl = 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/zh?period=7&region=US';
-                    let tags = [];
+                    // 【特效药】：绝对锁定你要求的“商业创意中心”近7天话题！
+                    // 我们直接请求它页面底层的 JSON API 接口
+                    const tkApiUrl = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/hashtag/list?period=7&page=1&limit=15&country_code=US';
                     
                     try {
-                        raw = await fetchRawData(tkHtmlUrl);
-                        const regexList = [/"hashtag_name":"([^"]+)"/g, /"keyword":"([^"]+)"/g];
-                        for (let regex of regexList) {
-                            let match;
-                            while ((match = regex.exec(raw)) !== null && tags.length < 15) {
-                                let tagStr = match[1].replace(/\\u[\dA-F]{4}/gi, (m) => String.fromCharCode(parseInt(m.replace(/\\u/g, ''), 16)));
-                                if(!tags.includes(tagStr) && tagStr.length > 1) tags.push(tagStr);
-                            }
-                            if (tags.length > 0) break;
+                        // 因为你的 CF 代理被 TikTok 拉黑了，这里专为 TikTok 换上备用跳板
+                        const tkRes = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(tkApiUrl), { cache: 'no-store' });
+                        const tkProxyData = await tkRes.json();
+                        
+                        // AllOrigins 会把 JSON 作为字符串放在 contents 里返回
+                        const tkJson = JSON.parse(tkProxyData.contents);
+                        
+                        if (tkJson && tkJson.data && tkJson.data.list) {
+                            tkJson.data.list.forEach(tag => {
+                                items.push({ 
+                                    title: '#' + tag.hashtag_name, 
+                                    link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` 
+                                });
+                            });
+                        } else {
+                            throw new Error("Invalid TikTok JSON Structure");
                         }
-                    } catch (err) {
-                        console.warn('Failed to fetch TikTok HTML, falling back to pure API');
+                    } catch (e) {
+                        // 如果跳板失败，再试一次通过你的专属代理
+                        const tkResFallback = await fetchRawData(tkApiUrl);
+                        const tkJsonFallback = JSON.parse(tkResFallback);
+                        tkJsonFallback.data.list.forEach(tag => {
+                            items.push({ 
+                                title: '#' + tag.hashtag_name, 
+                                link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` 
+                            });
+                        });
                     }
-
-                    // 终极双保险：如果你的 CF 代理被防爬虫页面拦截（HTML里没有话题词）
-                    // 直接穿透调用该页面背后的隐藏 JSON API 接口！
-                    if(tags.length === 0) {
-                        const tkApiUrl = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/hashtag/list?period=7&page=1&limit=15&country_code=US';
-                        const apiRaw = await fetchRawData(tkApiUrl);
-                        const jsonData = JSON.parse(apiRaw);
-                        if (jsonData.data && jsonData.data.list) {
-                            jsonData.data.list.forEach(tag => tags.push(tag.hashtag_name));
-                        }
-                    }
-
-                    if(tags.length === 0) throw new Error("Parsed empty TikTok array");
-
-                    tags.slice(0, 15).forEach(t => {
-                        items.push({ title: '#' + t, link: `https://www.tiktok.com/tag/${encodeURIComponent(t)}` });
-                    });
                     break;
             }
             
