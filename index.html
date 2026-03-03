@@ -33,22 +33,16 @@
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
         const platforms = [
-            // 已成功的两个，原样保留
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-100' },
-            // 待修复的三个
             { id: 'youtube', name: 'YouTube Trend (US)', color: 'border-red-600' },
             { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-500' },
-            { id: 'tiktok', name: 'TikTok Trend', color: 'border-pink-500' }
+            { id: 'tiktok', name: 'TikTok Trend (7D)', color: 'border-pink-500' }
         ];
 
-        // 关闭那些容易引发 404/403 的假时间戳
-        async function fetchRawData(url, useTimestamp = false) {
-            let targetUrl = url;
-            if (useTimestamp) {
-                targetUrl += (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
-            }
-            const response = await fetch(MY_PROXY + encodeURIComponent(targetUrl), { cache: 'no-store' });
+        async function fetchRawData(url) {
+            // 坚决不加任何额外参数，防止目标服务器报错 404
+            const response = await fetch(MY_PROXY + encodeURIComponent(url), { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.text();
         }
@@ -60,16 +54,14 @@
 
             switch (platformId) {
                 case 'reddit':
-                    // 【成功项保持不动】
-                    raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15', true);
+                    raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15');
                     JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
                         items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
                     });
                     break;
 
                 case 'twitter':
-                    // 【成功项保持不动】
-                    raw = await fetchRawData('https://trends24.in/united-states/', true);
+                    raw = await fetchRawData('https://trends24.in/united-states/');
                     const docTwitter = parser.parseFromString(raw, "text/html");
                     const tNodes = docTwitter.querySelectorAll('.trend-card__list li a');
                     for(let i=0; i<Math.min(tNodes.length, 15); i++) {
@@ -78,35 +70,54 @@
                     break;
 
                 case 'youtube':
-                    // 【修复 404】换用真实存在的 API 路由
-                    raw = await fetchRawData('https://yt.lemnoslife.com/videos?part=snippet&chart=mostPopular&regionCode=US&maxResults=15', false);
+                    raw = await fetchRawData('https://yt.lemnoslife.com/videos?part=snippet&chart=mostPopular&regionCode=US&maxResults=15');
                     JSON.parse(raw).items.forEach(v => {
                         items.push({ title: v.snippet.title, link: `https://www.youtube.com/watch?v=${v.id}` });
                     });
                     break;
 
-                case 'tiktok':
-                    // 【修复 DOM 封锁】换用极速纯净的 JSON 解析接口，直接拿 US 热门数据
-                    raw = await fetchRawData('https://www.tikwm.com/api/feed/list?region=US&count=15', false);
-                    JSON.parse(raw).data.forEach(v => {
-                        let title = v.title ? v.title.substring(0, 60) + '...' : `Trending Video by @${v.author.unique_id}`;
-                        items.push({ title: title, link: `https://www.tiktok.com/@${v.author.unique_id}/video/${v.video_id || v.id}` });
-                    });
-                    break;
-
                 case 'imdb':
-                    // 【修复 403】不碰 Trakt 了，直接暴力解剖 IMDb 官方最热电影排行榜网页
-                    raw = await fetchRawData('https://www.imdb.com/chart/moviemeter/', false);
+                    raw = await fetchRawData('https://www.imdb.com/chart/moviemeter/');
                     const docImdb = parser.parseFromString(raw, "text/html");
                     const mNodes = docImdb.querySelectorAll('.ipc-title__text');
                     mNodes.forEach(node => {
                         let text = node.textContent.trim();
-                        // 精准切出带排名的电影，例如 "1. Dune: Part Two"
                         if (/^\d+\./.test(text) && items.length < 15) {
                             let aTag = node.closest('a');
                             let link = aTag ? `https://www.imdb.com${aTag.getAttribute('href')}` : '#';
                             items.push({ title: text.replace(/^\d+\.\s*/, ''), link: link });
                         }
+                    });
+                    break;
+
+                case 'tiktok':
+                    // 锁定你截图中的官方近7天热门话题链接 (US区域)
+                    raw = await fetchRawData('https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/zh?period=7&region=US');
+                    
+                    let tags = [];
+                    // 正则暴力解剖：从 React 源码底层的 JSON 中硬抠出话题名
+                    const regexList = [/"hashtag_name":"([^"]+)"/g, /"keyword":"([^"]+)"/g];
+                    
+                    for (let regex of regexList) {
+                        let match;
+                        while ((match = regex.exec(raw)) !== null && tags.length < 15) {
+                            // 处理可能存在的转义字符，并去重
+                            let tag = match[1].replace(/\\u[\dA-F]{4}/gi, (m) => String.fromCharCode(parseInt(m.replace(/\\u/g, ''), 16)));
+                            if(!tags.includes(tag) && tag.length > 1) {
+                                tags.push(tag);
+                            }
+                        }
+                        if (tags.length > 0) break; 
+                    }
+
+                    if(tags.length === 0) throw new Error("DOM Structure Changed or Blocked");
+
+                    // 将抓到的热门话题（如 olympics）拼装成点击即达的标签搜索页
+                    tags.forEach(tag => {
+                        items.push({ 
+                            title: '#' + tag, 
+                            link: `https://www.tiktok.com/tag/${encodeURIComponent(tag)}` 
+                        });
                     });
                     break;
             }
@@ -140,7 +151,7 @@
         }
 
         async function init() {
-            // 错峰加载，规避大厂瞬时风控
+            // 错峰加载，规避风控
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
                 await new Promise(r => setTimeout(r, 400)); 
