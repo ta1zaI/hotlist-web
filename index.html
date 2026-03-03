@@ -3,132 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Matrix v5.0 - Ultimate Edition</title>
+    <title>Global Intel Matrix // Real-Time</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #000; border-radius: 0px; }
-        body { background-color: #f4f4f0; background-image: radial-gradient(#d1d5db 1px, transparent 1px); background-size: 20px 20px; }
-        
-        /* 欧美潮酷硬核 UI 风格 */
-        .neo-brutal {
-            border: 4px solid #000;
-            box-shadow: 6px 6px 0px #000;
-            transition: all 0.2s ease;
-        }
-        .neo-brutal:hover {
-            transform: translate(-3px, -3px);
-            box-shadow: 10px 10px 0px #000;
-        }
-        .neo-title { text-shadow: 3px 3px 0px #000; }
-        .marquee-container { overflow: hidden; white-space: nowrap; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .game-border { border: 2px solid #1e293b; box-shadow: 4px 4px 0px #0f172a; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .animate-blink { animation: blink 1.5s infinite; }
     </style>
 </head>
-<body class="p-4 md:p-6 font-sans text-black">
+<body class="bg-[#0f172a] p-4 md:p-8 font-mono text-slate-300">
 
-    <div class="max-w-[1800px] mx-auto">
-        <header class="mb-8 flex flex-col md:flex-row justify-between items-end border-b-4 border-black pb-4">
+    <div class="max-w-[1600px] mx-auto">
+        <header class="mb-10 flex flex-col md:flex-row justify-between items-end border-b-2 border-slate-800 pb-4">
             <div>
-                <h1 class="text-4xl md:text-5xl font-black tracking-tighter uppercase italic text-white neo-title" style="-webkit-text-stroke: 2px black;">OMNI-MATRIX 14</h1>
-                <p class="text-xs font-bold mt-2 uppercase tracking-widest bg-yellow-300 inline-block px-2 border-2 border-black">Active Node: Billowing-Salad // Status: Omni-Link</p>
+                <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Global 5 Hotlist</h1>
+                <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
+                    <span class="animate-blink">●</span> LIVE FEED // NODE: BILLOWING-SALAD
+                </p>
             </div>
-            <div class="text-xs font-bold mt-4 md:mt-0 px-3 py-1 bg-[#00ffcc] border-2 border-black">SYNC: 100% SECURE</div>
+            <div class="text-[10px] text-slate-500 italic">REAL-TIME SYNC ACTIVE</div>
         </header>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6" id="board-container"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="board-container"></div>
     </div>
 
     <script>
         const PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
-        const platforms = [
-            // 全球五大 (最稳的直连与大厂抓取)
-            { id: 'reddit', name: 'Reddit /r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json', bg: 'bg-[#ff4500]', text: 'text-white' },
-            { id: 'youtube', name: 'YouTube Trend', type: 'rss-google', url: 'https://news.google.com/rss/search?q=YouTube+Trending+Videos&hl=en-US&gl=US&ceid=US:en', bg: 'bg-[#ff0000]', text: 'text-white' },
-            { id: 'imdb', name: 'IMDb Movies', type: 'rss-google', url: 'https://news.google.com/rss/search?q=IMDb+Top+Movies&hl=en-US&gl=US&ceid=US:en', bg: 'bg-[#f5c518]', text: 'text-black' },
-            { id: 'twitter', name: 'X / Twitter', type: 'rss-google', url: 'https://news.google.com/rss/search?q=Twitter+Trending+Topics&hl=en-US&gl=US&ceid=US:en', bg: 'bg-[#1da1f2]', text: 'text-white' },
-            { id: 'tiktok', name: 'TikTok Trend', type: 'rss-google', url: 'https://news.google.com/rss/search?q=TikTok+Trending+Challenges&hl=en-US&gl=US&ceid=US:en', bg: 'bg-[#00f2fe]', text: 'text-black' },
-            
-            // 国内大众热搜 (走 vvhan 官方稳定 API)
-            { id: 'bilibili', name: 'Bilibili 热门', type: 'hot', url: 'https://api.vvhan.com/api/hotlist/bili', bg: 'bg-[#fb7299]', text: 'text-white' },
-            { id: 'weibo', name: '微博热搜', type: 'hot', url: 'https://api.vvhan.com/api/hotlist/wbHot', bg: 'bg-[#ffcc00]', text: 'text-black' },
-            { id: 'douyin', name: '抖音热点', type: 'hot', url: 'https://api.vvhan.com/api/hotlist/douyin', bg: 'bg-[#1c1c1e]', text: 'text-white' },
-
-            // 硬核游戏圈 (双重代理：RSS2JSON + Cloudflare)
-            { id: 'gamersky', name: '游民星空', type: 'rss-game', url: 'https://rsshub.app/gamersky/news', bg: 'bg-[#ff5500]', text: 'text-white' },
-            { id: '3dm', name: '3DM游戏网', type: 'rss-game', url: 'https://rsshub.app/3dm/news', bg: 'bg-[#1abc9c]', text: 'text-white' },
-            { id: 'taptap', name: 'TapTap 热榜', type: 'rss-game', url: 'https://rsshub.app/taptap/topic/hot', bg: 'bg-[#00d085]', text: 'text-white' },
-            { id: 'yystv', name: '游研社', type: 'rss-game', url: 'https://rsshub.app/yystv/docs', bg: 'bg-[#e74c3c]', text: 'text-white' },
-            { id: 'gcores', name: '机核 Gcores', type: 'rss-game', url: 'https://rsshub.app/gcores/category/news', bg: 'bg-[#2c3e50]', text: 'text-white' },
-            { id: 'shouyou', name: '手游那点事', type: 'rss-game', url: 'https://rsshub.app/zhihu/people/shou-you-na-dian-shi/activities', bg: 'bg-[#3498db]', text: 'text-white' }
+        // RSSHub 的多个顶级存活镜像
+        const MIRRORS = [
+            'https://hub.slarker.me',
+            'https://rsshub.app',
+            'https://rss.shab.fun',
+            'https://rsshub.anyant.com'
         ];
 
-        async function fetchAPI(platform) {
-            let fetchUrl = PROXY + encodeURIComponent(platform.url);
-            
-            // 对于游戏站 RSS，我们套一层 rss2json 彻底解决跨域和 530 错误
-            if (platform.type === 'rss-game') {
-                fetchUrl = PROXY + encodeURIComponent(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(platform.url)}`);
-            }
+        const platforms = [
+            // Reddit 官方实时热榜 (无缓存)
+            { id: 'reddit', name: 'Reddit /r/all', type: 'json', url: 'https://www.reddit.com/r/all/hot.json?limit=15', color: 'border-orange-500' },
+            // YouTube 实时 Trending (US 区域)
+            { id: 'youtube', name: 'YouTube Trend (US)', route: '/youtube/trending/US', color: 'border-red-600' },
+            // IMDb 实时热门电影
+            { id: 'imdb', name: 'IMDb Popular', route: '/imdb/trending/movie', color: 'border-yellow-500' },
+            // Twitter 美国区热搜 (WOEID: 23424977 为美国)
+            { id: 'twitter', name: 'X Trend (US)', route: '/twitter/trends/23424977', color: 'border-slate-100' },
+            // TikTok 全球热榜
+            { id: 'tiktok', name: 'TikTok Trend', route: '/tiktok/trending/worldwide', color: 'border-pink-500' }
+        ];
 
-            const response = await fetch(fetchUrl);
-            if (!response.ok) throw new Error('Network Error');
+        async function fetchWithRetry(platform, sourceIndex = 0) {
+            // 生成毫秒级时间戳，强制打穿缓存，确保拿到实时数据
+            const timestamp = Date.now(); 
+            const baseUrl = platform.url || (MIRRORS[sourceIndex] + platform.route);
+            const targetUrl = baseUrl.includes('?') ? `${baseUrl}&_t=${timestamp}` : `${baseUrl}?_t=${timestamp}`;
 
-            if (platform.type === 'json') {
-                const data = await response.json();
-                return data.data.children.map(c => ({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
-            } 
-            else if (platform.type === 'hot') {
-                const data = await response.json();
-                return data.data.map(i => ({ title: i.title, link: i.url }));
-            } 
-            else if (platform.type === 'rss-game') {
-                const data = await response.json();
-                if(data.status !== 'ok') throw new Error('Parse Failed');
-                return data.items.map(i => ({ title: i.title, link: i.link }));
-            } 
-            else {
-                // rss-google
-                const text = await response.text();
-                const doc = new DOMParser().parseFromString(text, "text/xml");
-                const nodes = doc.querySelectorAll("item");
-                let items = [];
-                nodes.forEach((n, i) => { 
-                    if(i < 15) {
-                        let cleanTitle = n.querySelector("title")?.textContent.replace(/ - [^-]+$/, '') || 'No Title';
-                        items.push({ title: cleanTitle, link: n.querySelector("link")?.textContent });
-                    }
-                });
-                return items;
+            try {
+                // 将强力无缓存的链接通过你的 CF 代理发出
+                const response = await fetch(PROXY + encodeURIComponent(targetUrl));
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return platform.type === 'json' ? await response.json() : await response.text();
+            } catch (e) {
+                // 如果当前节点封锁了，自动无缝切换下一个节点
+                if (sourceIndex < MIRRORS.length - 1) {
+                    return await fetchWithRetry(platform, sourceIndex + 1);
+                }
+                throw e;
             }
         }
 
         async function loadCard(platform, index) {
             const container = document.getElementById('board-container');
-            container.innerHTML += `<div id="card-${index}" class="h-[480px] bg-white neo-brutal flex items-center justify-center"><span class="font-bold uppercase animate-pulse">Loading ${platform.name}...</span></div>`;
+            container.innerHTML += `<div id="card-${index}" class="h-[500px] bg-slate-900/50 border-2 border-slate-800 rounded-lg flex items-center justify-center"><span class="text-[9px] animate-pulse uppercase text-emerald-700 tracking-tighter font-bold">Syncing_Live_${platform.name}...</span></div>`;
 
             try {
-                const items = await fetchAPI(platform);
+                const data = await fetchWithRetry(platform);
+                let items = [];
+
+                if (platform.type === 'json') {
+                    items = data.data.children.map(c => ({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
+                } else {
+                    const doc = new DOMParser().parseFromString(data, "text/xml");
+                    const nodes = doc.querySelectorAll("item");
+                    nodes.forEach((n, i) => { 
+                        if(i < 15) items.push({ title: n.querySelector("title")?.textContent, link: n.querySelector("link")?.textContent }); 
+                    });
+                }
+
                 let html = `
-                    <div class="h-[480px] bg-white neo-brutal flex flex-col overflow-hidden">
-                        <div class="p-3 ${platform.bg} border-b-4 border-black flex justify-between items-center">
-                            <span class="font-black text-lg uppercase ${platform.text} tracking-tight">${platform.name}</span>
+                    <div class="h-[500px] bg-slate-900 game-border ${platform.color} rounded-lg flex flex-col overflow-hidden transition-all hover:translate-y-[-4px]">
+                        <div class="p-3 bg-slate-800/80 flex justify-between items-center border-b-2 border-slate-800">
+                            <span class="font-black text-[10px] uppercase text-white">${platform.name}</span>
+                            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981] animate-blink"></div>
                         </div>
-                        <ul class="p-3 space-y-3 overflow-y-auto flex-1 custom-scrollbar bg-white">
+                        <ul class="p-3 space-y-3 overflow-y-auto flex-1 custom-scrollbar">
                 `;
                 items.forEach(item => {
-                    html += `<li class="border-b-2 border-gray-100 pb-2 last:border-0 hover:translate-x-1 transition-transform"><a href="${item.link}" target="_blank" class="text-xs font-bold text-gray-800 hover:text-blue-700 block leading-relaxed line-clamp-2"> > ${item.title}</a></li>`;
+                    html += `<li class="border-b border-slate-800/50 pb-2 last:border-0"><a href="${item.link}" target="_blank" class="text-[11px] leading-tight hover:text-emerald-400 block tracking-tight font-sans text-slate-300 transition-colors"> > ${item.title}</a></li>`;
                 });
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-white neo-brutal"><span class="text-red-500 font-black text-xl uppercase">OFFLINE</span><p class="text-xs font-bold mt-2 text-gray-500">${platform.name} Data Blocked</p></div>`;
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[LIVE SYNC FAILED]</span><p class="text-[9px] text-slate-600 mt-2">All routing nodes blocked by origin firewall.</p></div>`;
             }
         }
 
         async function init() {
+            // 排队加载，防止并发触发大厂的反爬虫机制
             for (let i = 0; i < platforms.length; i++) {
                 await loadCard(platforms[i], i);
-                await new Promise(r => setTimeout(r, 150)); 
+                await new Promise(r => setTimeout(r, 600)); 
             }
         }
         init();
