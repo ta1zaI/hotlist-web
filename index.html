@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Omni-Matrix // 4-NODE STRIKE</title>
+    <title>Omni-Matrix // PROFESSIONAL EDITION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 4px; }
@@ -18,19 +18,23 @@
     <div class="max-w-[1400px] mx-auto">
         <header class="mb-10 flex flex-col md:flex-row justify-between items-end border-b-2 border-slate-800 pb-4">
             <div>
-                <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Global 4 Hotlist</h1>
+                <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Omni-Matrix 4</h1>
                 <p class="text-[10px] text-emerald-500 mt-1 uppercase font-bold tracking-widest">
-                    <span class="animate-blink text-red-500">● LIVE</span> // ASYMMETRIC SCRAPING ENGINE
+                    <span class="animate-blink text-red-500">● LIVE</span> // RESIDENTIAL SCRAPE ENGINE ENABLED
                 </p>
             </div>
-            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">YOUTUBE DROPPED // STEALTH MODE ACTIVE</div>
+            <div class="text-[10px] text-slate-500 italic mt-4 md:mt-0">YOUTUBE DROPPED // TIKTOK WAF BYPASS READY</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="board-container"></div>
     </div>
 
     <script>
+        // 你的专属 CF 代理 (用于处理不需要伪装装家庭 IP 的站点)
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
+
+        // ⚠️ 在这里填入你申请的免费 API Key
+        const SCRAPER_API_KEY = '55cc9fdf6a593f6134c563837a4ace68'; 
 
         const platforms = [
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500' },
@@ -52,7 +56,7 @@
 
             switch (platformId) {
                 // ==========================================
-                // 【绝对安全区】：一字未改，保持你的胜利果实
+                // 【稳如磐石区】：Reddit, Twitter, IMDb
                 // ==========================================
                 case 'reddit':
                     raw = await fetchRawData('https://www.reddit.com/r/all/hot.json?limit=15');
@@ -78,49 +82,34 @@
                     break;
 
                 // ==========================================
-                // 【极限突围区】：TikTok 官方 API 隐形穿透
+                // 【顶级突围区】：TikTok 官方创意中心话题榜
                 // ==========================================
                 case 'tiktok':
-                    // TikTok 商业中心底层原生 API
+                    if (SCRAPER_API_KEY === '替换成你的API_KEY') {
+                        throw new Error("Missing ScraperAPI Key");
+                    }
+
+                    // TikTok 广告中心底层极速 JSON 接口
                     const tkApiUrl = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/hashtag/list?period=7&page=1&limit=15&country_code=US';
                     
-                    // 隐形代理池：避开已经被拉黑的 corsproxy 和 AllOrigins
-                    const stealthProxies = [
-                        'https://api.codetabs.com/v1/proxy?quest=',
-                        'https://thingproxy.freeboard.io/fetch/',
-                        MY_PROXY // 你的 CF 代理垫底
-                    ];
+                    // 使用 ScraperAPI 发起请求，WAF 会把你当成正在上网的美国家庭用户
+                    const scraperUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(tkApiUrl)}&render=false`;
                     
-                    let tkJson = null;
-
-                    // 轮询攻击：一个被墙就换下一个，直到拿到数据
-                    for (let proxy of stealthProxies) {
-                        try {
-                            const res = await fetch(proxy + encodeURIComponent(tkApiUrl), { cache: 'no-store' });
-                            if (!res.ok) continue;
-                            
-                            const data = await res.json();
-                            // 校验是否真的拿到了 JSON 数据，而不是被 WAF 拦截的 HTML 页面
-                            if (data && data.data && data.data.list) {
-                                tkJson = data;
-                                break; 
-                            }
-                        } catch (e) {
-                            console.warn(`Proxy ${proxy} failed to bypass TikTok WAF.`);
-                        }
-                    }
-
-                    if (!tkJson) {
-                        throw new Error("WAF Firewall Blocked All Public Proxies");
-                    }
-
-                    // 组装成官方 Hashtag 搜索页链接
-                    tkJson.data.list.slice(0, 15).forEach(tag => {
-                        items.push({ 
-                            title: '#' + tag.hashtag_name, 
-                            link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` 
+                    const res = await fetch(scraperUrl, { cache: 'no-store' });
+                    if (!res.ok) throw new Error("ScraperAPI blocked or failed");
+                    
+                    const tkJson = await res.json();
+                    
+                    if (tkJson && tkJson.data && tkJson.data.list) {
+                        tkJson.data.list.slice(0, 15).forEach(tag => {
+                            items.push({ 
+                                title: '#' + tag.hashtag_name, 
+                                link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` 
+                            });
                         });
-                    });
+                    } else {
+                        throw new Error("Invalid TikTok JSON Structure");
+                    }
                     break;
             }
             
@@ -148,7 +137,11 @@
                 document.getElementById(`card-${index}`).outerHTML = html + `</ul></div>`;
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
-                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[FIREWALL BLOCK]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">Target WAF explicitly blocked proxy IPs.</p></div>`;
+                let errorMsg = err.message === "Missing ScraperAPI Key" 
+                    ? "WAF ACTIVE. REQUIRES RESIDENTIAL PROXY API KEY." 
+                    : "Target WAF block / Endpoint dead.";
+                
+                document.getElementById(`card-${index}`).innerHTML = `<div class="p-6 text-center h-full flex flex-col items-center justify-center bg-slate-900 game-border"><span class="text-red-500 font-bold text-[10px] uppercase italic tracking-widest">[FIREWALL BLOCK]</span><p class="text-[9px] text-slate-600 mt-2 font-mono">${errorMsg}</p></div>`;
             }
         }
 
