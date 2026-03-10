@@ -29,7 +29,7 @@
                 <h1 class="text-4xl font-black tracking-wide text-slate-900 dark:text-white uppercase font-smooth-rounded">全球热榜聚合站</h1>
                 <div class="flex items-center gap-4 mt-3">
                     <p class="text-sm text-emerald-600 dark:text-emerald-500 uppercase font-bold tracking-widest font-smooth-rounded">
-                        <span class="animate-blink text-red-500">● LIVE</span> // UNLIMITED FREE API 
+                        <span class="animate-blink text-red-500">● LIVE</span> // CLOUDFLARE ROUTING ACTIVE 
                     </p>
                     <span class="text-sm font-bold text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded shadow-inner font-smooth-rounded" id="last-refresh">上次刷新: 获取中...</span>
                 </div>
@@ -99,7 +99,6 @@
         async function getRealTimeData(platform) {
             let items = [];
             let raw = '';
-            const parser = new DOMParser();
 
             switch (platform.id) {
                 case 'reddit':
@@ -110,7 +109,7 @@
                     break;
                 case 'twitter':
                     raw = await fetchViaBackend('https://trends24.in/united-states/');
-                    const docTwitter = parser.parseFromString(raw, "text/html");
+                    const docTwitter = new DOMParser().parseFromString(raw, "text/html");
                     docTwitter.querySelectorAll('.trend-card__list li a').forEach((node, i) => {
                         if(i < 15) items.push({ title: node.textContent.trim(), link: node.href });
                     });
@@ -143,7 +142,6 @@
             return items;
         }
 
-        // 核心翻译引擎：高效合并请求，瞬间处理整个卡片
         async function translateWrapper(index) {
             const wrapper = document.getElementById(`card-wrapper-${index}`);
             if (!wrapper) return;
@@ -152,12 +150,15 @@
             
             if (needsTranslation && links.length > 0) {
                 const titles = Array.from(links).map(l => l.dataset.en);
-                // 用罕见符号拼合 15 个标题，只发一次网络请求
                 const textToTranslate = titles.join(' ❖ ');
                 try {
-                    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=${encodeURIComponent(textToTranslate)}`;
-                    const res = await fetch(url);
+                    // 【核心修复】：将 Google 翻译的请求完整打包交由 Cloudflare 代理节点转发！
+                    const googleApiUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=${encodeURIComponent(textToTranslate)}`;
+                    const proxiedUrl = MY_PROXY + encodeURIComponent(googleApiUrl);
+                    
+                    const res = await fetch(proxiedUrl);
                     const json = await res.json();
+                    
                     let translatedText = '';
                     json[0].forEach(seg => { if(seg[0]) translatedText += seg[0]; });
                     const translatedTitles = translatedText.split('❖').map(t => t.trim());
@@ -179,7 +180,6 @@
             }
         }
 
-        // 控制中英切换按钮
         async function toggleTranslation() {
             if (isTranslating) return;
             const btn = document.getElementById('translate-btn');
@@ -189,7 +189,6 @@
                 btn.innerHTML = '⏳ 神经翻译中...';
                 btn.classList.add('animate-pulse');
                 
-                // 并发翻译所有卡片
                 const promises = platforms.map((p, i) => translateWrapper(i));
                 await Promise.all(promises);
                 
@@ -229,13 +228,11 @@
                         <ul class="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
                 `;
                 items.forEach(item => {
-                    // 将原始英文埋藏在 data-en 属性中
                     const safeTitle = item.title.replace(/"/g, '&quot;');
                     html += `<li class="border-b border-slate-100 dark:border-slate-800/50 pb-3 last:border-0"><a href="${item.link}" target="_blank" data-en="${safeTitle}" class="hot-title text-base leading-relaxed hover:text-emerald-600 dark:hover:text-emerald-400 block tracking-wide text-slate-700 dark:text-slate-300 transition-colors font-smooth-rounded"> > ${item.title}</a></li>`;
                 });
                 wrapper.innerHTML = html + `</ul></div>`;
 
-                // 如果当前处于翻译模式，新刷出来的数据自动翻译
                 if (isTranslated) {
                     await translateWrapper(index);
                 }
