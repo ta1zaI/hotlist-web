@@ -23,7 +23,7 @@
 </head>
 <body class="bg-slate-50 dark:bg-[#0f172a] text-slate-800 dark:text-slate-300 font-mono transition-colors duration-300 min-h-screen p-4 md:p-8">
 
-    <div class="max-w-[1800px] mx-auto w-full">
+    <div class="max-w-[1400px] mx-auto w-full">
         <header class="mb-10 flex flex-col md:flex-row justify-between items-end border-b-2 border-slate-300 dark:border-slate-800 pb-4">
             <div>
                 <h1 class="text-4xl font-black tracking-wide text-slate-900 dark:text-white uppercase font-smooth-rounded">全球热榜聚合站</h1>
@@ -36,6 +36,7 @@
             </div>
             
             <div class="text-sm font-bold mt-6 md:mt-0 flex flex-wrap items-center gap-3 font-smooth-rounded">
+                <span class="text-slate-500 dark:text-slate-400 mr-2 uppercase tracking-widest text-xs">3 Core Platforms</span>
                 <button onclick="toggleTheme()" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded border border-slate-400 dark:border-slate-600 transition-colors cursor-pointer flex items-center gap-2 shadow-sm">
                     🌓 昼夜切换
                 </button>
@@ -46,41 +47,25 @@
             </div>
         </header>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6" id="board-container"></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8" id="board-container"></div>
     </div>
 
     <script>
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
+        // 只保留纯净海外铁三角
         const platforms = [
-            { id: 'reddit', name: 'Reddit', color: 'border-orange-500 dark:border-orange-500' },
+            { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500 dark:border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-400 dark:border-slate-100' },
-            { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-600 dark:border-yellow-500' },
-            { id: 'bilibili', name: 'Bilibili 全站', hashId: '74KvxwokxM', color: 'border-pink-500 dark:border-pink-400' },
-            { id: 'douyin', name: '抖音热搜榜', hashId: 'K7GdaMgdQy', color: 'border-purple-600 dark:border-purple-500' },
-            { id: 'xiaohongshu', name: '小红书热榜', hashId: 'L4MdA5ldxD', color: 'border-red-500 dark:border-red-600' },
-            { id: 'wechat', name: '微信热文', hashId: 'WnBe01o371', color: 'border-green-600 dark:border-green-500' },
-            { id: 'sina', name: '新浪热榜', hashId: '4qv9zk1daK', color: 'border-red-600 dark:border-red-500' },
-            { id: 'thepaper', name: '澎湃新闻', hashId: 'wWmoO5Rd4E', color: 'border-cyan-600 dark:border-cyan-500' },
-            { id: 'maoyan', name: '猫眼票房榜', hashId: '9JndkpJe3V', color: 'border-red-700 dark:border-red-700' },
-            { id: '3dm', name: '3DM 游戏网', hashId: 'YqoXQR0vOD', color: 'border-orange-600 dark:border-orange-600' },
-            { id: 'gcores', name: '机核网', hashId: 'wWmoOVYe4E', color: 'border-zinc-500 dark:border-zinc-500' },
-            { id: 'gamersky', name: '游民星空', hashId: 'ARe1kXnv7n', color: 'border-blue-600 dark:border-blue-600' },
-            { id: 'yys', name: '游研社', hashId: 'Om4ej8mvxE', color: 'border-blue-500 dark:border-blue-400' },
-            { id: 'gouhuo', name: '篝火营地', hashId: 'KGoRRNzol6', color: 'border-yellow-600 dark:border-yellow-600' },
-            { id: 'sykong', name: '手游那点事', hashId: 'n3moBXPdN5', color: 'border-teal-600 dark:border-teal-500' },
-            { id: 'gameres', name: 'GameRes游资网', hashId: 'ARe1Lyld7n', color: 'border-indigo-600 dark:border-indigo-500' }
+            { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-600 dark:border-yellow-500' }
         ];
 
         function toggleTheme() {
             document.documentElement.classList.toggle('dark');
         }
 
-        // 【核心修改】：精准读取缓存的真实出生时间
         function updateRefreshTime() {
             let latestTime = 0;
-            
-            // 遍历所有平台的缓存，找到最近一次真正从服务器抓取数据的时间
             platforms.forEach(p => {
                 const cache = localStorage.getItem(`omni_cache_${p.id}`);
                 if (cache) {
@@ -127,46 +112,27 @@
             let raw = '';
             const parser = new DOMParser();
 
-            if (platform.hashId) {
-                const apiUrl = `https://api.tophubdata.com/nodes/${platform.hashId}`;
-                raw = await fetchViaBackend(apiUrl);
-                let json;
-                try {
-                    json = JSON.parse(raw);
-                } catch(e) {
-                    throw new Error("Backend Returned Error");
-                }
-                
-                if (json && (json.data?.items || json.data)) {
-                    const dataItems = json.data.items || json.data;
-                    dataItems.slice(0, 15).forEach(item => {
-                        items.push({ title: item.title, link: item.url || item.link || '#' });
+            // 专注海外数据解析逻辑
+            switch (platform.id) {
+                case 'reddit':
+                    raw = await fetchViaBackend('https://www.reddit.com/r/all/hot.json?limit=15');
+                    JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
+                        items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
                     });
-                } else {
-                    throw new Error("Invalid Tophub API Payload");
-                }
-            } else {
-                switch (platform.id) {
-                    case 'reddit':
-                        raw = await fetchViaBackend('https://www.reddit.com/r/all/hot.json?limit=15');
-                        JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
-                            items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
-                        });
-                        break;
-                    case 'twitter':
-                        raw = await fetchViaBackend('https://trends24.in/united-states/');
-                        const docTwitter = parser.parseFromString(raw, "text/html");
-                        docTwitter.querySelectorAll('.trend-card__list li a').forEach((node, i) => {
-                            if(i < 15) items.push({ title: node.textContent.trim(), link: node.href });
-                        });
-                        break;
-                    case 'imdb':
-                        raw = await fetchViaBackend('https://api.themoviedb.org/3/trending/movie/day?api_key=15d2ea6d0dc1d476efbca3eba2b9bbfb');
-                        JSON.parse(raw).results.slice(0, 15).forEach(m => {
-                            items.push({ title: m.title, link: `https://www.themoviedb.org/movie/${m.id}` });
-                        });
-                        break;
-                }
+                    break;
+                case 'twitter':
+                    raw = await fetchViaBackend('https://trends24.in/united-states/');
+                    const docTwitter = parser.parseFromString(raw, "text/html");
+                    docTwitter.querySelectorAll('.trend-card__list li a').forEach((node, i) => {
+                        if(i < 15) items.push({ title: node.textContent.trim(), link: node.href });
+                    });
+                    break;
+                case 'imdb':
+                    raw = await fetchViaBackend('https://api.themoviedb.org/3/trending/movie/day?api_key=15d2ea6d0dc1d476efbca3eba2b9bbfb');
+                    JSON.parse(raw).results.slice(0, 15).forEach(m => {
+                        items.push({ title: m.title, link: `https://www.themoviedb.org/movie/${m.id}` });
+                    });
+                    break;
             }
             
             if(items.length === 0) throw new Error("Parsed empty array");
@@ -181,34 +147,34 @@
 
         async function loadCard(platform, index, forceRefresh = false) {
             const wrapper = document.getElementById(`card-wrapper-${index}`);
-            const loadingText = platform.hashId ? `Routing_Backend...` : `Fetching_${platform.name}...`;
+            const loadingText = `Fetching_${platform.name}...`;
             
-            wrapper.innerHTML = `<div class="h-[480px] bg-white dark:bg-slate-900/50 border-2 border-slate-300 dark:border-slate-800 rounded-lg flex items-center justify-center"><span class="text-sm animate-pulse uppercase text-emerald-600 dark:text-emerald-700 font-bold tracking-widest font-smooth-rounded">${forceRefresh ? 'Force_Syncing' : loadingText}</span></div>`;
+            wrapper.innerHTML = `<div class="h-[520px] bg-white dark:bg-slate-900/50 border-2 border-slate-300 dark:border-slate-800 rounded-lg flex items-center justify-center"><span class="text-sm animate-pulse uppercase text-emerald-600 dark:text-emerald-700 font-bold tracking-widest font-smooth-rounded">${forceRefresh ? 'Force_Syncing' : loadingText}</span></div>`;
 
             try {
                 const items = await getRealTimeData(platform, forceRefresh);
                 let html = `
-                    <div class="h-[480px] bg-white dark:bg-slate-900 game-border ${platform.color} rounded-lg flex flex-col overflow-hidden transition-all hover:translate-y-[-4px]">
-                        <div class="p-4 bg-slate-100 dark:bg-slate-800/80 flex justify-between items-center border-b-2 border-slate-200 dark:border-slate-800">
-                            <span class="font-black text-base uppercase text-slate-800 dark:text-white tracking-widest font-smooth-rounded">${platform.name}</span>
-                            <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981] animate-blink"></div>
+                    <div class="h-[520px] bg-white dark:bg-slate-900 game-border ${platform.color} rounded-lg flex flex-col overflow-hidden transition-all hover:translate-y-[-4px]">
+                        <div class="p-5 bg-slate-100 dark:bg-slate-800/80 flex justify-between items-center border-b-2 border-slate-200 dark:border-slate-800">
+                            <span class="font-black text-lg uppercase text-slate-800 dark:text-white tracking-widest font-smooth-rounded">${platform.name}</span>
+                            <div class="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981] animate-blink"></div>
                         </div>
-                        <ul class="p-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+                        <ul class="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
                 `;
                 items.forEach(item => {
-                    html += `<li class="border-b border-slate-100 dark:border-slate-800/50 pb-3 last:border-0"><a href="${item.link}" target="_blank" class="text-base leading-relaxed hover:text-emerald-600 dark:hover:text-emerald-400 block tracking-wide font-sans text-slate-700 dark:text-slate-300 transition-colors font-smooth-rounded"> > ${item.title}</a></li>`;
+                    html += `<li class="border-b border-slate-100 dark:border-slate-800/50 pb-3 last:border-0"><a href="${item.link}" target="_blank" class="text-base leading-relaxed hover:text-emerald-600 dark:hover:text-emerald-400 block tracking-wide text-slate-700 dark:text-slate-300 transition-colors font-smooth-rounded"> > ${item.title}</a></li>`;
                 });
                 wrapper.innerHTML = html + `</ul></div>`;
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
-                let errMsg = platform.hashId ? "API Limit / Fetch Failed." : "Target Endpoint Blocked.";
+                let errMsg = "Target Endpoint Blocked.";
                 if (err.message.includes("429")) errMsg = "Rate Limited (Wait 10 mins)."; 
-                wrapper.innerHTML = `<div class="h-[480px] p-6 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 game-border"><span class="text-red-500 font-bold text-sm uppercase italic tracking-widest font-smooth-rounded">[SYSTEM OFFLINE]</span><p class="text-sm text-slate-500 dark:text-slate-600 mt-2 font-mono">${errMsg}</p></div>`;
+                wrapper.innerHTML = `<div class="h-[520px] p-6 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 game-border"><span class="text-red-500 font-bold text-sm uppercase italic tracking-widest font-smooth-rounded">[SYSTEM OFFLINE]</span><p class="text-sm text-slate-500 dark:text-slate-600 mt-2 font-mono">${errMsg}</p></div>`;
             }
         }
 
         async function forceRefreshAll() {
-            const pwd = prompt("🛑 安全警告：强制刷新将消耗 API 点数。\n请输入管理员密码：");
+            const pwd = prompt("🛑 安全警告：强制刷新将重新拉取数据。\n请输入管理员密码：");
             if (pwd === null) return; 
             if (pwd !== "20018001") {
                 alert("❌ 密码错误，已取消刷新。");
@@ -216,11 +182,8 @@
             }
             
             document.getElementById('last-refresh').innerText = `同步中...`;
-            
-            // 【核心修改】：等待所有网络请求真的跑完之后，再去更新真实时间
             const promises = platforms.map((p, i) => loadCard(p, i, true));
             await Promise.all(promises);
-            
             updateRefreshTime();
         }
 
@@ -234,10 +197,8 @@
                 container.appendChild(wrapper);
             });
 
-            // 【核心修改】：等待初始化时的所有数据（不管是走的缓存还是网络）加载完毕，再显示确切时间
             const promises = platforms.map((p, i) => loadCard(p, i, false));
             await Promise.all(promises);
-            
             updateRefreshTime();
         }
         
