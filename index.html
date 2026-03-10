@@ -9,7 +9,6 @@
         tailwind.config = { darkMode: 'class' }
     </script>
     <style>
-        /* 极致平滑方正的现代无衬线字体 */
         .font-smooth-rounded {
             font-family: system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif;
         }
@@ -30,14 +29,14 @@
                 <h1 class="text-4xl font-black tracking-wide text-slate-900 dark:text-white uppercase font-smooth-rounded">全球热榜聚合站</h1>
                 <div class="flex items-center gap-4 mt-3">
                     <p class="text-sm text-emerald-600 dark:text-emerald-500 uppercase font-bold tracking-widest font-smooth-rounded">
-                        <span class="animate-blink text-red-500">● LIVE</span> // GLOBAL MATRIX ACTIVE
+                        <span class="animate-blink text-red-500">● LIVE</span> // STABLE MATRIX ACTIVE
                     </p>
                     <span class="text-sm font-bold text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded shadow-inner font-smooth-rounded" id="last-refresh">数据同步于: 获取中...</span>
                 </div>
             </div>
             
             <div class="text-sm font-bold mt-6 md:mt-0 flex flex-wrap items-center gap-3 font-smooth-rounded">
-                <span class="text-slate-500 dark:text-slate-400 mr-2 uppercase tracking-widest text-xs font-mono">9 CORE PLATFORMS</span>
+                <span class="text-slate-500 dark:text-slate-400 mr-2 uppercase tracking-widest text-xs font-mono">6 CORE PLATFORMS</span>
                 <button onclick="toggleTheme()" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded border border-slate-400 dark:border-slate-600 transition-colors cursor-pointer flex items-center gap-2 shadow-sm">
                     🌓 昼夜切换
                 </button>
@@ -54,14 +53,11 @@
     <script>
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
-        // 终极海外 9 大平台全开！
+        // 极致纯净版：无 TikTok，无 YouTube，无 Product Hunt
         const platforms = [
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500 dark:border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-400 dark:border-slate-100' },
-            { id: 'youtube', name: 'YouTube Trending', color: 'border-red-600 dark:border-red-600' },
-            { id: 'tiktok', name: 'TikTok Trend', color: 'border-pink-600 dark:border-pink-500' },
             { id: 'hackernews', name: 'Hacker News', color: 'border-orange-600 dark:border-orange-600' },
-            { id: 'producthunt', name: 'Product Hunt', color: 'border-orange-400 dark:border-orange-400' },
             { id: 'nyt', name: 'The New York Times', color: 'border-stone-800 dark:border-stone-400' },
             { id: 'bbc', name: 'BBC Global News', color: 'border-red-700 dark:border-red-700' },
             { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-600 dark:border-yellow-500' }
@@ -71,7 +67,6 @@
             document.documentElement.classList.toggle('dark');
         }
 
-        // 精准提取缓存真实时间
         function updateRefreshTime() {
             let latestTime = 0;
             platforms.forEach(p => {
@@ -101,7 +96,6 @@
             return await response.text();
         }
 
-        // 超强通用的 RSS/XML 提取工具
         function parseRSS(xmlStr) {
             const doc = new DOMParser().parseFromString(xmlStr, "text/xml");
             const items = Array.from(doc.querySelectorAll("item")).slice(0, 15);
@@ -134,7 +128,6 @@
             let raw = '';
             const parser = new DOMParser();
 
-            // 彻底释放全部 API 能力
             switch (platform.id) {
                 case 'reddit':
                     raw = await fetchViaBackend('https://www.reddit.com/r/all/hot.json?limit=15');
@@ -149,35 +142,13 @@
                         if(i < 15) items.push({ title: node.textContent.trim(), link: node.href });
                     });
                     break;
-                case 'youtube':
-                    // 使用免 Key 第三方解析
-                    raw = await fetchViaBackend('https://yt.lemnoslife.com/videos?part=snippet&chart=mostPopular&regionCode=US&maxResults=15');
-                    JSON.parse(raw).items.forEach(v => {
-                        items.push({ title: v.snippet.title, link: `https://www.youtube.com/watch?v=${v.id}` });
-                    });
-                    break;
-                case 'tiktok':
-                    const tkApiUrl = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend/hashtag/list?period=7&page=1&limit=15&country_code=US';
-                    raw = await fetchViaBackend(tkApiUrl);
-                    const tkJson = JSON.parse(raw);
-                    if (tkJson && tkJson.data && tkJson.data.list) {
-                        tkJson.data.list.slice(0, 15).forEach(tag => {
-                            items.push({ title: '#' + tag.hashtag_name, link: `https://www.tiktok.com/tag/${encodeURIComponent(tag.hashtag_name)}` });
-                        });
-                    }
-                    break;
                 case 'hackernews':
-                    // HN 提供极度友好的开源 API，无需代理直接秒拿
                     const hnRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
                     const hnIds = await hnRes.json();
                     const hnItems = await Promise.all(hnIds.slice(0, 15).map(id => fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then(r => r.json())));
                     hnItems.forEach(item => {
                         items.push({ title: item.title, link: item.url || `https://news.ycombinator.com/item?id=${item.id}` });
                     });
-                    break;
-                case 'producthunt':
-                    raw = await fetchViaBackend('https://www.producthunt.com/feed');
-                    items = parseRSS(raw);
                     break;
                 case 'nyt':
                     raw = await fetchViaBackend('https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml');
