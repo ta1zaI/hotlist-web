@@ -36,7 +36,9 @@
             </div>
             
             <div class="text-sm font-bold mt-6 md:mt-0 flex flex-wrap items-center gap-3 font-smooth-rounded">
-                <span class="text-slate-500 dark:text-slate-400 mr-2 uppercase tracking-widest text-xs font-mono">6 CORE PLATFORMS</span>
+                <button id="translate-btn" onclick="toggleTranslation()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded border border-blue-600 transition-colors cursor-pointer flex items-center gap-2 shadow-sm font-bold">
+                    🌐 开启中文翻译
+                </button>
                 <button onclick="toggleTheme()" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded border border-slate-400 dark:border-slate-600 transition-colors cursor-pointer flex items-center gap-2 shadow-sm">
                     🌓 昼夜切换
                 </button>
@@ -62,11 +64,13 @@
             { id: 'imdb', name: 'IMDb Popular', color: 'border-yellow-600 dark:border-yellow-500' }
         ];
 
+        let isTranslated = false;
+        let isTranslating = false;
+
         function toggleTheme() {
             document.documentElement.classList.toggle('dark');
         }
 
-        // 简化时间记录逻辑：现在就是网页当前抓取的时间
         function updateRefreshTime() {
             const now = new Date();
             const timeString = now.toLocaleTimeString('zh-CN', { hour12: false });
@@ -92,7 +96,6 @@
             });
         }
 
-        // 彻底移除了 localStorage 和缓存限制
         async function getRealTimeData(platform) {
             let items = [];
             let raw = '';
@@ -140,6 +143,75 @@
             return items;
         }
 
+        // 核心翻译引擎：高效合并请求，瞬间处理整个卡片
+        async function translateWrapper(index) {
+            const wrapper = document.getElementById(`card-wrapper-${index}`);
+            if (!wrapper) return;
+            const links = wrapper.querySelectorAll('.hot-title');
+            const needsTranslation = Array.from(links).some(l => !l.dataset.zh);
+            
+            if (needsTranslation && links.length > 0) {
+                const titles = Array.from(links).map(l => l.dataset.en);
+                // 用罕见符号拼合 15 个标题，只发一次网络请求
+                const textToTranslate = titles.join(' ❖ ');
+                try {
+                    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=${encodeURIComponent(textToTranslate)}`;
+                    const res = await fetch(url);
+                    const json = await res.json();
+                    let translatedText = '';
+                    json[0].forEach(seg => { if(seg[0]) translatedText += seg[0]; });
+                    const translatedTitles = translatedText.split('❖').map(t => t.trim());
+                    
+                    links.forEach((link, idx) => {
+                        if (translatedTitles[idx]) {
+                            let cleanTitle = translatedTitles[idx].replace(/^[\s>]+/, '');
+                            link.dataset.zh = cleanTitle;
+                            link.innerText = '> ' + cleanTitle;
+                        }
+                    });
+                } catch (e) {
+                    console.error('Translate error', e);
+                }
+            } else {
+                links.forEach(link => {
+                    if (link.dataset.zh) link.innerText = '> ' + link.dataset.zh;
+                });
+            }
+        }
+
+        // 控制中英切换按钮
+        async function toggleTranslation() {
+            if (isTranslating) return;
+            const btn = document.getElementById('translate-btn');
+            
+            if (!isTranslated) {
+                isTranslating = true;
+                btn.innerHTML = '⏳ 神经翻译中...';
+                btn.classList.add('animate-pulse');
+                
+                // 并发翻译所有卡片
+                const promises = platforms.map((p, i) => translateWrapper(i));
+                await Promise.all(promises);
+                
+                isTranslated = true;
+                isTranslating = false;
+                btn.classList.remove('animate-pulse');
+                btn.innerHTML = '文 关闭中文翻译';
+                btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+                btn.classList.replace('border-blue-600', 'border-emerald-600');
+                btn.classList.replace('hover:bg-blue-700', 'hover:bg-emerald-700');
+            } else {
+                isTranslated = false;
+                btn.innerHTML = '🌐 开启中文翻译';
+                document.querySelectorAll('.hot-title').forEach(link => {
+                    link.innerText = '> ' + link.dataset.en;
+                });
+                btn.classList.replace('bg-emerald-600', 'bg-blue-600');
+                btn.classList.replace('border-emerald-600', 'border-blue-600');
+                btn.classList.replace('hover:bg-emerald-700', 'hover:bg-blue-700');
+            }
+        }
+
         async function loadCard(platform, index, isRefreshing = false) {
             const wrapper = document.getElementById(`card-wrapper-${index}`);
             const loadingText = isRefreshing ? `Syncing_${platform.name}...` : `Fetching_${platform.name}...`;
@@ -147,7 +219,6 @@
             wrapper.innerHTML = `<div class="h-[520px] bg-white dark:bg-slate-900/50 border-2 border-slate-300 dark:border-slate-800 rounded-lg flex items-center justify-center"><span class="text-sm animate-pulse uppercase text-emerald-600 dark:text-emerald-700 font-bold tracking-widest font-smooth-rounded">${loadingText}</span></div>`;
 
             try {
-                // 每次请求都是实时的
                 const items = await getRealTimeData(platform);
                 let html = `
                     <div class="h-[520px] bg-white dark:bg-slate-900 game-border ${platform.color} rounded-lg flex flex-col overflow-hidden transition-all hover:translate-y-[-4px]">
@@ -158,9 +229,17 @@
                         <ul class="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
                 `;
                 items.forEach(item => {
-                    html += `<li class="border-b border-slate-100 dark:border-slate-800/50 pb-3 last:border-0"><a href="${item.link}" target="_blank" class="text-base leading-relaxed hover:text-emerald-600 dark:hover:text-emerald-400 block tracking-wide text-slate-700 dark:text-slate-300 transition-colors font-smooth-rounded"> > ${item.title}</a></li>`;
+                    // 将原始英文埋藏在 data-en 属性中
+                    const safeTitle = item.title.replace(/"/g, '&quot;');
+                    html += `<li class="border-b border-slate-100 dark:border-slate-800/50 pb-3 last:border-0"><a href="${item.link}" target="_blank" data-en="${safeTitle}" class="hot-title text-base leading-relaxed hover:text-emerald-600 dark:hover:text-emerald-400 block tracking-wide text-slate-700 dark:text-slate-300 transition-colors font-smooth-rounded"> > ${item.title}</a></li>`;
                 });
                 wrapper.innerHTML = html + `</ul></div>`;
+
+                // 如果当前处于翻译模式，新刷出来的数据自动翻译
+                if (isTranslated) {
+                    await translateWrapper(index);
+                }
+
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
                 let errMsg = "Target Endpoint Blocked.";
@@ -169,7 +248,6 @@
             }
         }
 
-        // 无密码、无限制的随心刷新
         async function refreshAll() {
             document.getElementById('last-refresh').innerText = `同步中...`;
             const promises = platforms.map((p, i) => loadCard(p, i, true));
