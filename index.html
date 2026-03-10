@@ -29,9 +29,9 @@
                 <h1 class="text-4xl font-black tracking-wide text-slate-900 dark:text-white uppercase font-smooth-rounded">全球热榜聚合站</h1>
                 <div class="flex items-center gap-4 mt-3">
                     <p class="text-sm text-emerald-600 dark:text-emerald-500 uppercase font-bold tracking-widest font-smooth-rounded">
-                        <span class="animate-blink text-red-500">● LIVE</span> // STABLE MATRIX ACTIVE
+                        <span class="animate-blink text-red-500">● LIVE</span> // UNLIMITED FREE API 
                     </p>
-                    <span class="text-sm font-bold text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded shadow-inner font-smooth-rounded" id="last-refresh">数据同步于: 获取中...</span>
+                    <span class="text-sm font-bold text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded shadow-inner font-smooth-rounded" id="last-refresh">上次刷新: 获取中...</span>
                 </div>
             </div>
             
@@ -40,9 +40,9 @@
                 <button onclick="toggleTheme()" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded border border-slate-400 dark:border-slate-600 transition-colors cursor-pointer flex items-center gap-2 shadow-sm">
                     🌓 昼夜切换
                 </button>
-                <button onclick="forceRefreshAll()" class="px-5 py-2.5 bg-slate-800 hover:bg-red-600 dark:bg-slate-800 dark:hover:bg-red-600 text-white rounded border border-slate-600 transition-colors cursor-pointer flex items-center gap-2 shadow-sm">
+                <button onclick="refreshAll()" class="px-5 py-2.5 bg-slate-800 hover:bg-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-600 text-white rounded border border-slate-600 transition-colors cursor-pointer flex items-center gap-2 shadow-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                    强制刷新
+                    立即刷新
                 </button>
             </div>
         </header>
@@ -53,7 +53,6 @@
     <script>
         const MY_PROXY = 'https://billowing-salad-1c9b.lyr124423132.workers.dev/?url=';
 
-        // 极致纯净版：无 TikTok，无 YouTube，无 Product Hunt
         const platforms = [
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500 dark:border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-400 dark:border-slate-100' },
@@ -67,27 +66,11 @@
             document.documentElement.classList.toggle('dark');
         }
 
+        // 简化时间记录逻辑：现在就是网页当前抓取的时间
         function updateRefreshTime() {
-            let latestTime = 0;
-            platforms.forEach(p => {
-                const cache = localStorage.getItem(`omni_cache_${p.id}`);
-                if (cache) {
-                    try {
-                        const parsed = JSON.parse(cache);
-                        if (parsed.timestamp > latestTime) {
-                            latestTime = parsed.timestamp;
-                        }
-                    } catch (e) {}
-                }
-            });
-
-            if (latestTime > 0) {
-                const date = new Date(latestTime);
-                const timeString = date.toLocaleTimeString('zh-CN', { hour12: false });
-                document.getElementById('last-refresh').innerText = `数据同步于: ${timeString}`;
-            } else {
-                document.getElementById('last-refresh').innerText = `数据同步于: 获取失败`;
-            }
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('zh-CN', { hour12: false });
+            document.getElementById('last-refresh').innerText = `上次刷新: ${timeString}`;
         }
 
         async function fetchViaBackend(url) {
@@ -109,21 +92,8 @@
             });
         }
 
-        async function getRealTimeData(platform, forceRefresh = false) {
-            const CACHE_MINUTES = 30; 
-            const cacheKey = `omni_cache_${platform.id}`;
-            
-            if (!forceRefresh) {
-                const cachedData = localStorage.getItem(cacheKey);
-                if (cachedData) {
-                    const parsedCache = JSON.parse(cachedData);
-                    const now = new Date().getTime();
-                    if (now - parsedCache.timestamp < CACHE_MINUTES * 60 * 1000) {
-                        return parsedCache.items;
-                    }
-                }
-            }
-
+        // 彻底移除了 localStorage 和缓存限制
+        async function getRealTimeData(platform) {
             let items = [];
             let raw = '';
             const parser = new DOMParser();
@@ -143,9 +113,9 @@
                     });
                     break;
                 case 'hackernews':
-                    const hnRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
+                    const hnRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json', { cache: 'no-store' });
                     const hnIds = await hnRes.json();
-                    const hnItems = await Promise.all(hnIds.slice(0, 15).map(id => fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then(r => r.json())));
+                    const hnItems = await Promise.all(hnIds.slice(0, 15).map(id => fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`, { cache: 'no-store' }).then(r => r.json())));
                     hnItems.forEach(item => {
                         items.push({ title: item.title, link: item.url || `https://news.ycombinator.com/item?id=${item.id}` });
                     });
@@ -167,23 +137,18 @@
             }
             
             if(items.length === 0) throw new Error("Parsed empty array");
-
-            localStorage.setItem(cacheKey, JSON.stringify({
-                timestamp: new Date().getTime(),
-                items: items
-            }));
-
             return items;
         }
 
-        async function loadCard(platform, index, forceRefresh = false) {
+        async function loadCard(platform, index, isRefreshing = false) {
             const wrapper = document.getElementById(`card-wrapper-${index}`);
-            const loadingText = `Fetching_${platform.name}...`;
+            const loadingText = isRefreshing ? `Syncing_${platform.name}...` : `Fetching_${platform.name}...`;
             
-            wrapper.innerHTML = `<div class="h-[520px] bg-white dark:bg-slate-900/50 border-2 border-slate-300 dark:border-slate-800 rounded-lg flex items-center justify-center"><span class="text-sm animate-pulse uppercase text-emerald-600 dark:text-emerald-700 font-bold tracking-widest font-smooth-rounded">${forceRefresh ? 'Force_Syncing' : loadingText}</span></div>`;
+            wrapper.innerHTML = `<div class="h-[520px] bg-white dark:bg-slate-900/50 border-2 border-slate-300 dark:border-slate-800 rounded-lg flex items-center justify-center"><span class="text-sm animate-pulse uppercase text-emerald-600 dark:text-emerald-700 font-bold tracking-widest font-smooth-rounded">${loadingText}</span></div>`;
 
             try {
-                const items = await getRealTimeData(platform, forceRefresh);
+                // 每次请求都是实时的
+                const items = await getRealTimeData(platform);
                 let html = `
                     <div class="h-[520px] bg-white dark:bg-slate-900 game-border ${platform.color} rounded-lg flex flex-col overflow-hidden transition-all hover:translate-y-[-4px]">
                         <div class="p-5 bg-slate-100 dark:bg-slate-800/80 flex justify-between items-center border-b-2 border-slate-200 dark:border-slate-800">
@@ -204,14 +169,8 @@
             }
         }
 
-        async function forceRefreshAll() {
-            const pwd = prompt("🛑 安全警告：强制刷新将重新拉取数据。\n请输入管理员密码：");
-            if (pwd === null) return; 
-            if (pwd !== "20018001") {
-                alert("❌ 密码错误，已取消刷新。");
-                return;
-            }
-            
+        // 无密码、无限制的随心刷新
+        async function refreshAll() {
             document.getElementById('last-refresh').innerText = `同步中...`;
             const promises = platforms.map((p, i) => loadCard(p, i, true));
             await Promise.all(promises);
