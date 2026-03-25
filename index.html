@@ -58,6 +58,7 @@
         const platforms = [
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500 dark:border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-400 dark:border-slate-100' },
+            { id: 'gamersky', name: '游民星空', color: 'border-red-600 dark:border-red-500' }, // 【新增】游民星空
             { id: 'hackernews', name: 'Hacker News', color: 'border-orange-600 dark:border-orange-600' },
             { id: 'nyt', name: 'The New York Times', color: 'border-stone-800 dark:border-stone-400' },
             { id: 'bbc', name: 'BBC Global News', color: 'border-red-700 dark:border-red-700' },
@@ -114,6 +115,10 @@
                         if(i < 15) items.push({ title: node.textContent.trim(), link: node.href });
                     });
                     break;
+                case 'gamersky': // 【新增逻辑】利用 RSSHub 抓取游民星空
+                    raw = await fetchViaBackend('https://rsshub.app/gamersky/news');
+                    items = parseRSS(raw);
+                    break;
                 case 'hackernews':
                     const hnRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json', { cache: 'no-store' });
                     const hnIds = await hnRes.json();
@@ -152,7 +157,6 @@
                 const titles = Array.from(links).map(l => l.dataset.en);
                 const textToTranslate = titles.join(' ❖ ');
                 try {
-                    // 【核心修复】：将 Google 翻译的请求完整打包交由 Cloudflare 代理节点转发！
                     const googleApiUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=${encodeURIComponent(textToTranslate)}`;
                     const proxiedUrl = MY_PROXY + encodeURIComponent(googleApiUrl);
                     
@@ -271,4 +275,3 @@
     </script>
 </body>
 </html>
-
