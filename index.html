@@ -29,7 +29,7 @@
                 <h1 class="text-4xl font-black tracking-wide text-slate-900 dark:text-white uppercase font-smooth-rounded">全球热榜聚合站</h1>
                 <div class="flex items-center gap-4 mt-3">
                     <p class="text-sm text-emerald-600 dark:text-emerald-500 uppercase font-bold tracking-widest font-smooth-rounded">
-                        <span class="animate-blink text-red-500">● LIVE</span> // HYBRID ROUTING ACTIVE 
+                        <span class="animate-blink text-red-500">● LIVE</span> // CLOUDFLARE ROUTING ACTIVE 
                     </p>
                     <span class="text-sm font-bold text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded shadow-inner font-smooth-rounded" id="last-refresh">上次刷新: 获取中...</span>
                 </div>
@@ -59,12 +59,7 @@
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500 dark:border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-400 dark:border-slate-100' },
             { id: 'gamersky', name: '游民星空', color: 'border-red-600 dark:border-red-500' },
-            { id: '3dm', name: '3DM游戏网', color: 'border-red-500 dark:border-red-500' },
-            { id: 'yystv', name: '游研社', color: 'border-red-400 dark:border-red-400' },
-            { id: 'gameres', name: 'GameRes游资网', color: 'border-blue-500 dark:border-blue-500' },
-            { id: 'gcores', name: '机核网', color: 'border-slate-800 dark:border-slate-500' },
-            { id: 'sykong', name: '手游那点事', color: 'border-teal-600 dark:border-teal-500' },
-            { id: 'gouhuo', name: '篝火营地', color: 'border-orange-600 dark:border-orange-500' },
+            { id: '3dm', name: '3DM游戏网', color: 'border-red-500 dark:border-red-500' }, // 【新增】3DM游戏网
             { id: 'hackernews', name: 'Hacker News', color: 'border-orange-600 dark:border-orange-600' },
             { id: 'nyt', name: 'The New York Times', color: 'border-stone-800 dark:border-stone-400' },
             { id: 'bbc', name: 'BBC Global News', color: 'border-red-700 dark:border-red-700' },
@@ -80,10 +75,10 @@
 
         function updateRefreshTime() {
             const now = new Date();
-            document.getElementById('last-refresh').innerText = `上次刷新: ${now.toLocaleTimeString('zh-CN', { hour12: false })}`;
+            const timeString = now.toLocaleTimeString('zh-CN', { hour12: false });
+            document.getElementById('last-refresh').innerText = `上次刷新: ${timeString}`;
         }
 
-        // 用于访问必须翻墙且不支持跨域的国外网站（走你的 Cloudflare 节点）
         async function fetchViaBackend(url) {
             const response = await fetch(MY_PROXY + encodeURIComponent(url), { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -93,45 +88,14 @@
         function parseRSS(xmlStr) {
             const doc = new DOMParser().parseFromString(xmlStr, "text/xml");
             const items = Array.from(doc.querySelectorAll("item")).slice(0, 15);
-            return items.map(item => ({
-                title: item.querySelector("title")?.textContent.trim() || "Unknown",
-                link: item.querySelector("link")?.textContent.trim() || "#"
-            }));
-        }
-
-        // 【核心大招】：全新封装的独立获取函数，专门用于绕过 503/530 拦截
-        async function fetchRSSHubDirectly(route) {
-            const mirrors = [
-                `https://rsshub.rssforever.com${route}`,
-                `https://rss.shab.fun${route}`,
-                `https://rsshub.ktachibana.party${route}`,
-                `https://rsshub.noxussj.top${route}`
-            ];
-            
-            // 方案 A：让浏览器直接发起请求，伪装成正常人类访客，绕开 CF Worker 拦截
-            for (let url of mirrors) {
-                try {
-                    const res = await fetch(url, { cache: 'no-store' }); 
-                    if (res.ok) {
-                        const parsedItems = parseRSS(await res.text());
-                        if (parsedItems.length > 0) return parsedItems;
-                    }
-                } catch (e) { console.warn('直连被阻挡，尝试下一个:', url); }
-            }
-            
-            // 方案 B：如果直连全部失败，动用终极第三方公共 API 进行代理
-            for (let url of mirrors) {
-                try {
-                    const fallbackUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-                    const res = await fetch(fallbackUrl, { cache: 'no-store' });
-                    if (res.ok) {
-                        const parsedItems = parseRSS(await res.text());
-                        if (parsedItems.length > 0) return parsedItems;
-                    }
-                } catch (e) { console.warn('终极备用代理失败:', url); }
-            }
-            
-            throw new Error("所有抓取线路均已瘫痪");
+            return items.map(item => {
+                const titleNode = item.querySelector("title");
+                const linkNode = item.querySelector("link");
+                return {
+                    title: titleNode ? titleNode.textContent.trim() : "Unknown Title",
+                    link: linkNode ? linkNode.textContent.trim() : "#"
+                };
+            });
         }
 
         async function getRealTimeData(platform) {
@@ -141,28 +105,64 @@
             switch (platform.id) {
                 case 'reddit':
                     raw = await fetchViaBackend('https://www.reddit.com/r/all/hot.json?limit=15');
-                    JSON.parse(raw).data.children.slice(0, 15).forEach(c => items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` }));
+                    JSON.parse(raw).data.children.slice(0, 15).forEach(c => {
+                        items.push({ title: c.data.title, link: `https://reddit.com${c.data.permalink}` });
+                    });
                     break;
                 case 'twitter':
                     raw = await fetchViaBackend('https://trends24.in/united-states/');
                     const docTwitter = new DOMParser().parseFromString(raw, "text/html");
-                    docTwitter.querySelectorAll('.trend-card__list li a').forEach((node, i) => { if(i < 15) items.push({ title: node.textContent.trim(), link: node.href }); });
+                    docTwitter.querySelectorAll('.trend-card__list li a').forEach((node, i) => {
+                        if(i < 15) items.push({ title: node.textContent.trim(), link: node.href });
+                    });
                     break;
-                
-                // 【全部改为调用直连函数，代码变得极其干净】
-                case 'gamersky': items = await fetchRSSHubDirectly('/gamersky/news'); break;
-                case '3dm':      items = await fetchRSSHubDirectly('/3dmgame/news'); break;
-                case 'yystv':    items = await fetchRSSHubDirectly('/yystv/docs'); break;
-                case 'gameres':  items = await fetchRSSHubDirectly('/gameres/news'); break;
-                case 'gcores':   items = await fetchRSSHubDirectly('/gcores/category/1'); break;
-                case 'sykong':   items = await fetchRSSHubDirectly('/sykong/news'); break;
-                case 'gouhuo':   items = await fetchRSSHubDirectly('/gouhuo/news'); break;
-
+                case 'gamersky': 
+                    const mirrors = [
+                        'https://rsshub.rssforever.com/gamersky/news',
+                        'https://rss.shab.fun/gamersky/news',
+                        'https://rsshub.ktachibana.party/gamersky/news',
+                        'https://rsshub.noxussj.top/gamersky/news'
+                    ];
+                    
+                    for (let mirrorUrl of mirrors) {
+                        try {
+                            raw = await fetchViaBackend(mirrorUrl);
+                            items = parseRSS(raw);
+                            if (items.length > 0) break;
+                        } catch (e) {
+                            console.warn('镜像源被拦截，正在切换下一个:', mirrorUrl);
+                        }
+                    }
+                    
+                    if (items.length === 0) throw new Error("所有游民星空镜像源均被拦截");
+                    break;
+                case '3dm': // 【新增逻辑】利用多镜像轮询抓取 3DM
+                    const mirrors3dm = [
+                        'https://rsshub.rssforever.com/3dmgame/news',
+                        'https://rss.shab.fun/3dmgame/news',
+                        'https://rsshub.ktachibana.party/3dmgame/news',
+                        'https://rsshub.noxussj.top/3dmgame/news'
+                    ];
+                    
+                    for (let mirrorUrl3dm of mirrors3dm) {
+                        try {
+                            raw = await fetchViaBackend(mirrorUrl3dm);
+                            items = parseRSS(raw);
+                            if (items.length > 0) break;
+                        } catch (e) {
+                            console.warn('3DM镜像源被拦截，正在切换下一个:', mirrorUrl3dm);
+                        }
+                    }
+                    
+                    if (items.length === 0) throw new Error("所有3DM镜像源均被拦截");
+                    break;
                 case 'hackernews':
                     const hnRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json', { cache: 'no-store' });
                     const hnIds = await hnRes.json();
-                    const hnItems = await Promise.all(hnIds.slice(0, 15).map(id => fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then(r => r.json())));
-                    hnItems.forEach(item => items.push({ title: item.title, link: item.url || `https://news.ycombinator.com/item?id=${item.id}` }));
+                    const hnItems = await Promise.all(hnIds.slice(0, 15).map(id => fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`, { cache: 'no-store' }).then(r => r.json())));
+                    hnItems.forEach(item => {
+                        items.push({ title: item.title, link: item.url || `https://news.ycombinator.com/item?id=${item.id}` });
+                    });
                     break;
                 case 'nyt':
                     raw = await fetchViaBackend('https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml');
@@ -174,7 +174,9 @@
                     break;
                 case 'imdb':
                     raw = await fetchViaBackend('https://api.themoviedb.org/3/trending/movie/day?api_key=15d2ea6d0dc1d476efbca3eba2b9bbfb');
-                    JSON.parse(raw).results.slice(0, 15).forEach(m => items.push({ title: m.title, link: `https://www.themoviedb.org/movie/${m.id}` }));
+                    JSON.parse(raw).results.slice(0, 15).forEach(m => {
+                        items.push({ title: m.title, link: `https://www.themoviedb.org/movie/${m.id}` });
+                    });
                     break;
             }
             
@@ -190,10 +192,14 @@
             
             if (needsTranslation && links.length > 0) {
                 const titles = Array.from(links).map(l => l.dataset.en);
+                const textToTranslate = titles.join(' ❖ ');
                 try {
-                    const googleApiUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=${encodeURIComponent(titles.join(' ❖ '))}`;
-                    const res = await fetch(MY_PROXY + encodeURIComponent(googleApiUrl));
+                    const googleApiUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=${encodeURIComponent(textToTranslate)}`;
+                    const proxiedUrl = MY_PROXY + encodeURIComponent(googleApiUrl);
+                    
+                    const res = await fetch(proxiedUrl);
                     const json = await res.json();
+                    
                     let translatedText = '';
                     json[0].forEach(seg => { if(seg[0]) translatedText += seg[0]; });
                     const translatedTitles = translatedText.split('❖').map(t => t.trim());
@@ -205,9 +211,13 @@
                             link.innerText = '> ' + cleanTitle;
                         }
                     });
-                } catch (e) { console.error('Translate error', e); }
+                } catch (e) {
+                    console.error('Translate error', e);
+                }
             } else {
-                links.forEach(link => { if (link.dataset.zh) link.innerText = '> ' + link.dataset.zh; });
+                links.forEach(link => {
+                    if (link.dataset.zh) link.innerText = '> ' + link.dataset.zh;
+                });
             }
         }
 
@@ -219,7 +229,10 @@
                 isTranslating = true;
                 btn.innerHTML = '⏳ 神经翻译中...';
                 btn.classList.add('animate-pulse');
-                await Promise.all(platforms.map((p, i) => translateWrapper(i)));
+                
+                const promises = platforms.map((p, i) => translateWrapper(i));
+                await Promise.all(promises);
+                
                 isTranslated = true;
                 isTranslating = false;
                 btn.classList.remove('animate-pulse');
@@ -230,7 +243,9 @@
             } else {
                 isTranslated = false;
                 btn.innerHTML = '🌐 开启中文翻译';
-                document.querySelectorAll('.hot-title').forEach(link => link.innerText = '> ' + link.dataset.en);
+                document.querySelectorAll('.hot-title').forEach(link => {
+                    link.innerText = '> ' + link.dataset.en;
+                });
                 btn.classList.replace('bg-emerald-600', 'bg-blue-600');
                 btn.classList.replace('border-emerald-600', 'border-blue-600');
                 btn.classList.replace('hover:bg-emerald-700', 'hover:bg-blue-700');
@@ -239,43 +254,60 @@
 
         async function loadCard(platform, index, isRefreshing = false) {
             const wrapper = document.getElementById(`card-wrapper-${index}`);
-            wrapper.innerHTML = `<div class="h-[520px] bg-white dark:bg-slate-900/50 border-2 border-slate-300 dark:border-slate-800 rounded-lg flex items-center justify-center"><span class="text-sm animate-pulse uppercase text-emerald-600 dark:text-emerald-700 font-bold tracking-widest font-smooth-rounded">${isRefreshing ? 'Syncing' : 'Fetching'}_${platform.name}...</span></div>`;
+            const loadingText = isRefreshing ? `Syncing_${platform.name}...` : `Fetching_${platform.name}...`;
+            
+            wrapper.innerHTML = `<div class="h-[520px] bg-white dark:bg-slate-900/50 border-2 border-slate-300 dark:border-slate-800 rounded-lg flex items-center justify-center"><span class="text-sm animate-pulse uppercase text-emerald-600 dark:text-emerald-700 font-bold tracking-widest font-smooth-rounded">${loadingText}</span></div>`;
 
             try {
                 const items = await getRealTimeData(platform);
-                let html = `<div class="h-[520px] bg-white dark:bg-slate-900 game-border ${platform.color} rounded-lg flex flex-col overflow-hidden transition-all hover:translate-y-[-4px]">
-                            <div class="p-5 bg-slate-100 dark:bg-slate-800/80 flex justify-between items-center border-b-2 border-slate-200 dark:border-slate-800">
-                                <span class="font-black text-lg uppercase text-slate-800 dark:text-white tracking-widest font-smooth-rounded">${platform.name}</span>
-                                <div class="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981] animate-blink"></div>
-                            </div>
-                            <ul class="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">`;
+                let html = `
+                    <div class="h-[520px] bg-white dark:bg-slate-900 game-border ${platform.color} rounded-lg flex flex-col overflow-hidden transition-all hover:translate-y-[-4px]">
+                        <div class="p-5 bg-slate-100 dark:bg-slate-800/80 flex justify-between items-center border-b-2 border-slate-200 dark:border-slate-800">
+                            <span class="font-black text-lg uppercase text-slate-800 dark:text-white tracking-widest font-smooth-rounded">${platform.name}</span>
+                            <div class="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981] animate-blink"></div>
+                        </div>
+                        <ul class="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+                `;
                 items.forEach(item => {
-                    html += `<li class="border-b border-slate-100 dark:border-slate-800/50 pb-3 last:border-0"><a href="${item.link}" target="_blank" data-en="${item.title.replace(/"/g, '&quot;')}" class="hot-title text-base leading-relaxed hover:text-emerald-600 dark:hover:text-emerald-400 block tracking-wide text-slate-700 dark:text-slate-300 transition-colors font-smooth-rounded"> > ${item.title}</a></li>`;
+                    const safeTitle = item.title.replace(/"/g, '&quot;');
+                    html += `<li class="border-b border-slate-100 dark:border-slate-800/50 pb-3 last:border-0"><a href="${item.link}" target="_blank" data-en="${safeTitle}" class="hot-title text-base leading-relaxed hover:text-emerald-600 dark:hover:text-emerald-400 block tracking-wide text-slate-700 dark:text-slate-300 transition-colors font-smooth-rounded"> > ${item.title}</a></li>`;
                 });
                 wrapper.innerHTML = html + `</ul></div>`;
-                if (isTranslated) await translateWrapper(index);
+
+                if (isTranslated) {
+                    await translateWrapper(index);
+                }
+
             } catch (err) {
-                wrapper.innerHTML = `<div class="h-[520px] p-6 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 game-border"><span class="text-red-500 font-bold text-sm uppercase italic tracking-widest font-smooth-rounded">[SYSTEM OFFLINE]</span><p class="text-sm text-slate-500 dark:text-slate-600 mt-2 font-mono">Fetching Failed</p></div>`;
+                console.error(`Error on ${platform.id}:`, err);
+                let errMsg = "Target Endpoint Blocked.";
+                if (err.message.includes("429") || err.message.includes("403")) errMsg = "Rate Limited or Blocked."; 
+                wrapper.innerHTML = `<div class="h-[520px] p-6 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 game-border"><span class="text-red-500 font-bold text-sm uppercase italic tracking-widest font-smooth-rounded">[SYSTEM OFFLINE]</span><p class="text-sm text-slate-500 dark:text-slate-600 mt-2 font-mono">${errMsg}</p></div>`;
             }
         }
 
         async function refreshAll() {
             document.getElementById('last-refresh').innerText = `同步中...`;
-            await Promise.all(platforms.map((p, i) => loadCard(p, i, true)));
+            const promises = platforms.map((p, i) => loadCard(p, i, true));
+            await Promise.all(promises);
             updateRefreshTime();
         }
 
         async function init() {
             const container = document.getElementById('board-container');
             container.innerHTML = ''; 
+            
             platforms.forEach((p, index) => {
                 const wrapper = document.createElement('div');
                 wrapper.id = `card-wrapper-${index}`;
                 container.appendChild(wrapper);
             });
-            await Promise.all(platforms.map((p, i) => loadCard(p, i, false)));
+
+            const promises = platforms.map((p, i) => loadCard(p, i, false));
+            await Promise.all(promises);
             updateRefreshTime();
         }
+        
         init();
     </script>
 </body>
