@@ -60,7 +60,7 @@
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-400 dark:border-slate-100' },
             { id: 'gamersky', name: '游民星空', color: 'border-red-600 dark:border-red-500' },
             { id: '3dm', name: '3DM游戏网', color: 'border-red-500 dark:border-red-500' },
-            { id: 'yystv', name: '游研社', color: 'border-red-400 dark:border-red-400' }, // 【新增】游研社
+            { id: 'yystv', name: '游研社', color: 'border-red-400 dark:border-red-400' }, // 【仅仅新增了这一行】
             { id: 'hackernews', name: 'Hacker News', color: 'border-orange-600 dark:border-orange-600' },
             { id: 'nyt', name: 'The New York Times', color: 'border-stone-800 dark:border-stone-400' },
             { id: 'bbc', name: 'BBC Global News', color: 'border-red-700 dark:border-red-700' },
@@ -137,7 +137,7 @@
                     
                     if (items.length === 0) throw new Error("所有游民星空镜像源均被拦截");
                     break;
-                case '3dm':
+                case '3dm': 
                     const mirrors3dm = [
                         'https://rsshub.rssforever.com/3dmgame/news',
                         'https://rss.shab.fun/3dmgame/news',
@@ -157,7 +157,7 @@
                     
                     if (items.length === 0) throw new Error("所有3DM镜像源均被拦截");
                     break;
-                case 'yystv': // 【新增逻辑】利用多镜像轮询抓取游研社
+                case 'yystv': // 【仅仅新增了这块逻辑】
                     const mirrorsYys = [
                         'https://rsshub.rssforever.com/yystv/docs',
                         'https://rss.shab.fun/yystv/docs',
@@ -171,7 +171,7 @@
                             items = parseRSS(raw);
                             if (items.length > 0) break;
                         } catch (e) {
-                            console.warn('YYSTV镜像源被拦截，正在切换下一个:', mirrorUrlYys);
+                            console.warn('游研社镜像源被拦截，正在切换下一个:', mirrorUrlYys);
                         }
                     }
                     
