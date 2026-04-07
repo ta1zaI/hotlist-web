@@ -58,7 +58,7 @@
         const platforms = [
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500 dark:border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-400 dark:border-slate-100' },
-            { id: 'gamersky', name: '游民星空', color: 'border-red-600 dark:border-red-500' }, // 【新增】游民星空
+            { id: 'gamersky', name: '游民星空', color: 'border-red-600 dark:border-red-500' },
             { id: 'hackernews', name: 'Hacker News', color: 'border-orange-600 dark:border-orange-600' },
             { id: 'nyt', name: 'The New York Times', color: 'border-stone-800 dark:border-stone-400' },
             { id: 'bbc', name: 'BBC Global News', color: 'border-red-700 dark:border-red-700' },
@@ -115,9 +115,27 @@
                         if(i < 15) items.push({ title: node.textContent.trim(), link: node.href });
                     });
                     break;
-                case 'gamersky': // 【新增逻辑】利用 RSSHub 抓取游民星空
-                    raw = await fetchViaBackend('https://rsshub.app/gamersky/news');
-                    items = parseRSS(raw);
+                case 'gamersky': 
+                    // 狡兔三窟：准备多个社区镜像源，一个被 403 拦截就自动试下一个
+                    const mirrors = [
+                        'https://rsshub.rssforever.com/gamersky/news',
+                        'https://rss.shab.fun/gamersky/news',
+                        'https://rsshub.ktachibana.party/gamersky/news',
+                        'https://rsshub.noxussj.top/gamersky/news'
+                    ];
+                    
+                    for (let mirrorUrl of mirrors) {
+                        try {
+                            raw = await fetchViaBackend(mirrorUrl);
+                            items = parseRSS(raw);
+                            if (items.length > 0) break; // 如果成功拿到数据，就跳出循环
+                        } catch (e) {
+                            console.warn('镜像源被拦截，正在切换下一个:', mirrorUrl);
+                            // 失败了什么也不做，继续循环试下一个
+                        }
+                    }
+                    
+                    if (items.length === 0) throw new Error("所有游民星空镜像源均被拦截");
                     break;
                 case 'hackernews':
                     const hnRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json', { cache: 'no-store' });
@@ -244,7 +262,7 @@
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
                 let errMsg = "Target Endpoint Blocked.";
-                if (err.message.includes("429")) errMsg = "Rate Limited (Wait 10 mins)."; 
+                if (err.message.includes("429") || err.message.includes("403")) errMsg = "Rate Limited or Blocked."; 
                 wrapper.innerHTML = `<div class="h-[520px] p-6 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 game-border"><span class="text-red-500 font-bold text-sm uppercase italic tracking-widest font-smooth-rounded">[SYSTEM OFFLINE]</span><p class="text-sm text-slate-500 dark:text-slate-600 mt-2 font-mono">${errMsg}</p></div>`;
             }
         }
