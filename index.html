@@ -59,8 +59,7 @@
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500 dark:border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-400 dark:border-slate-100' },
             { id: 'gamersky', name: '游民星空', color: 'border-red-600 dark:border-red-500' },
-            { id: '3dm', name: '3DM游戏网', color: 'border-red-500 dark:border-red-500' },
-            { id: 'yystv', name: '游研社', color: 'border-red-400 dark:border-red-400' }, // 【配置项保留】
+            { id: '3dm', name: '3DM游戏网', color: 'border-red-500 dark:border-red-500' }, // 【新增】3DM游戏网
             { id: 'hackernews', name: 'Hacker News', color: 'border-orange-600 dark:border-orange-600' },
             { id: 'nyt', name: 'The New York Times', color: 'border-stone-800 dark:border-stone-400' },
             { id: 'bbc', name: 'BBC Global News', color: 'border-red-700 dark:border-red-700' },
@@ -124,74 +123,39 @@
                         'https://rsshub.ktachibana.party/gamersky/news',
                         'https://rsshub.noxussj.top/gamersky/news'
                     ];
+                    
                     for (let mirrorUrl of mirrors) {
                         try {
                             raw = await fetchViaBackend(mirrorUrl);
                             items = parseRSS(raw);
                             if (items.length > 0) break;
-                        } catch (e) { console.warn('镜像源被拦截，正在切换下一个:', mirrorUrl); }
+                        } catch (e) {
+                            console.warn('镜像源被拦截，正在切换下一个:', mirrorUrl);
+                        }
                     }
+                    
                     if (items.length === 0) throw new Error("所有游民星空镜像源均被拦截");
                     break;
-                case '3dm': 
+                case '3dm': // 【新增逻辑】利用多镜像轮询抓取 3DM
                     const mirrors3dm = [
                         'https://rsshub.rssforever.com/3dmgame/news',
                         'https://rss.shab.fun/3dmgame/news',
                         'https://rsshub.ktachibana.party/3dmgame/news',
                         'https://rsshub.noxussj.top/3dmgame/news'
                     ];
+                    
                     for (let mirrorUrl3dm of mirrors3dm) {
                         try {
                             raw = await fetchViaBackend(mirrorUrl3dm);
                             items = parseRSS(raw);
                             if (items.length > 0) break;
-                        } catch (e) { console.warn('3DM镜像源被拦截，正在切换下一个:', mirrorUrl3dm); }
+                        } catch (e) {
+                            console.warn('3DM镜像源被拦截，正在切换下一个:', mirrorUrl3dm);
+                        }
                     }
+                    
                     if (items.length === 0) throw new Error("所有3DM镜像源均被拦截");
                     break;
-
-                // 【仅对游研社应用全新专属双保险抓取逻辑】
-                case 'yystv': 
-                    const mirrorsYys = [
-                        'https://rsshub.rssforever.com/yystv/docs',
-                        'https://rss.shab.fun/yystv/docs',
-                        'https://rsshub.ktachibana.party/yystv/docs',
-                        'https://rsshub.noxussj.top/yystv/docs',
-                        'https://rsshub.appss.eu.org/yystv/docs',
-                        'https://rsshub.liubing.me/yystv/docs'
-                    ];
-                    
-                    // 战术1：先用你自己的节点抓（和游民、3DM保持一致），大概率能成功
-                    for (let url of mirrorsYys) {
-                        try {
-                            raw = await fetchViaBackend(url);
-                            items = parseRSS(raw);
-                            if (items.length > 0) break;
-                        } catch (e) {
-                            console.warn('游研社CF代理节点受阻，切换中:', url);
-                        }
-                    }
-                    
-                    // 战术2：如果你自己的节点全部 530，启用超级 CORS 代理强穿透（规避浏览器限制）
-                    if (items.length === 0) {
-                        for (let url of mirrorsYys) {
-                            try {
-                                const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
-                                const res = await fetch(proxyUrl, { cache: 'no-store' });
-                                if (res.ok) {
-                                    raw = await res.text();
-                                    items = parseRSS(raw);
-                                    if (items.length > 0) break;
-                                }
-                            } catch (err) {
-                                console.warn('游研社超级代理受阻:', proxyUrl);
-                            }
-                        }
-                    }
-                    
-                    if (items.length === 0) throw new Error("游研社所有抓取手段彻底失效");
-                    break;
-
                 case 'hackernews':
                     const hnRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json', { cache: 'no-store' });
                     const hnIds = await hnRes.json();
@@ -247,7 +211,9 @@
                             link.innerText = '> ' + cleanTitle;
                         }
                     });
-                } catch (e) { console.error('Translate error', e); }
+                } catch (e) {
+                    console.error('Translate error', e);
+                }
             } else {
                 links.forEach(link => {
                     if (link.dataset.zh) link.innerText = '> ' + link.dataset.zh;
@@ -315,7 +281,7 @@
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
                 let errMsg = "Target Endpoint Blocked.";
-                if (err.message.includes("429") || err.message.includes("403") || err.message.includes("530")) errMsg = "Rate Limited or Blocked."; 
+                if (err.message.includes("429") || err.message.includes("403")) errMsg = "Rate Limited or Blocked."; 
                 wrapper.innerHTML = `<div class="h-[520px] p-6 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 game-border"><span class="text-red-500 font-bold text-sm uppercase italic tracking-widest font-smooth-rounded">[SYSTEM OFFLINE]</span><p class="text-sm text-slate-500 dark:text-slate-600 mt-2 font-mono">${errMsg}</p></div>`;
             }
         }
