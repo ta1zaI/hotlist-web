@@ -59,6 +59,7 @@
             { id: 'reddit', name: 'Reddit /r/all', color: 'border-orange-500 dark:border-orange-500' },
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-400 dark:border-slate-100' },
             { id: 'gamersky', name: '游民星空', color: 'border-red-600 dark:border-red-500' },
+            { id: '3dm', name: '3DM游戏网', color: 'border-red-500 dark:border-red-500' }, // 【新增】3DM游戏网
             { id: 'hackernews', name: 'Hacker News', color: 'border-orange-600 dark:border-orange-600' },
             { id: 'nyt', name: 'The New York Times', color: 'border-stone-800 dark:border-stone-400' },
             { id: 'bbc', name: 'BBC Global News', color: 'border-red-700 dark:border-red-700' },
@@ -116,7 +117,6 @@
                     });
                     break;
                 case 'gamersky': 
-                    // 狡兔三窟：准备多个社区镜像源，一个被 403 拦截就自动试下一个
                     const mirrors = [
                         'https://rsshub.rssforever.com/gamersky/news',
                         'https://rss.shab.fun/gamersky/news',
@@ -128,14 +128,33 @@
                         try {
                             raw = await fetchViaBackend(mirrorUrl);
                             items = parseRSS(raw);
-                            if (items.length > 0) break; // 如果成功拿到数据，就跳出循环
+                            if (items.length > 0) break;
                         } catch (e) {
                             console.warn('镜像源被拦截，正在切换下一个:', mirrorUrl);
-                            // 失败了什么也不做，继续循环试下一个
                         }
                     }
                     
                     if (items.length === 0) throw new Error("所有游民星空镜像源均被拦截");
+                    break;
+                case '3dm': // 【新增逻辑】利用多镜像轮询抓取 3DM
+                    const mirrors3dm = [
+                        'https://rsshub.rssforever.com/3dmgame/news',
+                        'https://rss.shab.fun/3dmgame/news',
+                        'https://rsshub.ktachibana.party/3dmgame/news',
+                        'https://rsshub.noxussj.top/3dmgame/news'
+                    ];
+                    
+                    for (let mirrorUrl3dm of mirrors3dm) {
+                        try {
+                            raw = await fetchViaBackend(mirrorUrl3dm);
+                            items = parseRSS(raw);
+                            if (items.length > 0) break;
+                        } catch (e) {
+                            console.warn('3DM镜像源被拦截，正在切换下一个:', mirrorUrl3dm);
+                        }
+                    }
+                    
+                    if (items.length === 0) throw new Error("所有3DM镜像源均被拦截");
                     break;
                 case 'hackernews':
                     const hnRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json', { cache: 'no-store' });
