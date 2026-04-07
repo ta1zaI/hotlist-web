@@ -60,7 +60,11 @@
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-400 dark:border-slate-100' },
             { id: 'gamersky', name: '游民星空', color: 'border-red-600 dark:border-red-500' },
             { id: '3dm', name: '3DM游戏网', color: 'border-red-500 dark:border-red-500' },
-            { id: 'yystv', name: '游研社', color: 'border-red-400 dark:border-red-400' }, // 【新增】游研社
+            { id: 'yystv', name: '游研社', color: 'border-red-400 dark:border-red-400' },
+            { id: 'gameres', name: 'GameRes游资网', color: 'border-blue-500 dark:border-blue-500' }, // 【新增】
+            { id: 'gcores', name: '机核网', color: 'border-slate-800 dark:border-slate-500' }, // 【新增】
+            { id: 'sykong', name: '手游那点事', color: 'border-teal-600 dark:border-teal-500' }, // 【新增】
+            { id: 'gouhuo', name: '篝火营地', color: 'border-orange-600 dark:border-orange-500' }, // 【新增】
             { id: 'hackernews', name: 'Hacker News', color: 'border-orange-600 dark:border-orange-600' },
             { id: 'nyt', name: 'The New York Times', color: 'border-stone-800 dark:border-stone-400' },
             { id: 'bbc', name: 'BBC Global News', color: 'border-red-700 dark:border-red-700' },
@@ -131,6 +135,7 @@
                             if (items.length > 0) break;
                         } catch (e) { console.warn('Gamersky mirror blocked, switching...'); }
                     }
+                    if (items.length === 0) throw new Error("所有游民星空镜像源均被拦截");
                     break;
                 case '3dm':
                     const mirrors3dm = [
@@ -146,8 +151,9 @@
                             if (items.length > 0) break;
                         } catch (e) { console.warn('3DM mirror blocked, switching...'); }
                     }
+                    if (items.length === 0) throw new Error("所有3DM镜像源均被拦截");
                     break;
-                case 'yystv': // 【新增逻辑】多镜像轮询抓取游研社
+                case 'yystv': 
                     const mirrorsYys = [
                         'https://rsshub.rssforever.com/yystv/docs',
                         'https://rss.shab.fun/yystv/docs',
@@ -161,6 +167,71 @@
                             if (items.length > 0) break;
                         } catch (e) { console.warn('YYSTV mirror blocked, switching...'); }
                     }
+                    if (items.length === 0) throw new Error("所有游研社镜像源均被拦截");
+                    break;
+                case 'gameres': // 【新增】游资网
+                    const mirrorsGameres = [
+                        'https://rsshub.rssforever.com/gameres/news',
+                        'https://rss.shab.fun/gameres/news',
+                        'https://rsshub.ktachibana.party/gameres/news',
+                        'https://rsshub.noxussj.top/gameres/news'
+                    ];
+                    for (let url of mirrorsGameres) {
+                        try {
+                            raw = await fetchViaBackend(url);
+                            items = parseRSS(raw);
+                            if (items.length > 0) break;
+                        } catch (e) { console.warn('GameRes mirror blocked, switching...'); }
+                    }
+                    if (items.length === 0) throw new Error("所有游资网镜像源均被拦截");
+                    break;
+                case 'gcores': // 【新增】机核网
+                    const mirrorsGcores = [
+                        'https://rsshub.rssforever.com/gcores/category/1',
+                        'https://rss.shab.fun/gcores/category/1',
+                        'https://rsshub.ktachibana.party/gcores/category/1',
+                        'https://rsshub.noxussj.top/gcores/category/1'
+                    ];
+                    for (let url of mirrorsGcores) {
+                        try {
+                            raw = await fetchViaBackend(url);
+                            items = parseRSS(raw);
+                            if (items.length > 0) break;
+                        } catch (e) { console.warn('Gcores mirror blocked, switching...'); }
+                    }
+                    if (items.length === 0) throw new Error("所有机核镜像源均被拦截");
+                    break;
+                case 'sykong': // 【新增】手游那点事
+                    const mirrorsSykong = [
+                        'https://rsshub.rssforever.com/sykong/news',
+                        'https://rss.shab.fun/sykong/news',
+                        'https://rsshub.ktachibana.party/sykong/news',
+                        'https://rsshub.noxussj.top/sykong/news'
+                    ];
+                    for (let url of mirrorsSykong) {
+                        try {
+                            raw = await fetchViaBackend(url);
+                            items = parseRSS(raw);
+                            if (items.length > 0) break;
+                        } catch (e) { console.warn('Sykong mirror blocked, switching...'); }
+                    }
+                    if (items.length === 0) throw new Error("所有手游那点事镜像源均被拦截");
+                    break;
+                case 'gouhuo': // 【新增】篝火营地
+                    const mirrorsGouhuo = [
+                        'https://rsshub.rssforever.com/gouhuo/news',
+                        'https://rss.shab.fun/gouhuo/news',
+                        'https://rsshub.ktachibana.party/gouhuo/news',
+                        'https://rsshub.noxussj.top/gouhuo/news'
+                    ];
+                    for (let url of mirrorsGouhuo) {
+                        try {
+                            raw = await fetchViaBackend(url);
+                            items = parseRSS(raw);
+                            if (items.length > 0) break;
+                        } catch (e) { console.warn('Gouhuo mirror blocked, switching...'); }
+                    }
+                    if (items.length === 0) throw new Error("所有篝火营地镜像源均被拦截");
                     break;
                 case 'hackernews':
                     const hnRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json', { cache: 'no-store' });
