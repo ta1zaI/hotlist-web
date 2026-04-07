@@ -60,7 +60,7 @@
             { id: 'twitter', name: 'X Trend (US)', color: 'border-slate-400 dark:border-slate-100' },
             { id: 'gamersky', name: '游民星空', color: 'border-red-600 dark:border-red-500' },
             { id: '3dm', name: '3DM游戏网', color: 'border-red-500 dark:border-red-500' },
-            { id: 'yystv', name: '游研社', color: 'border-red-400 dark:border-red-400' }, // 【1. 仅仅新增了这一行配置】
+            { id: 'yystv', name: '游研社', color: 'border-red-400 dark:border-red-400' }, // 【配置项保留】
             { id: 'hackernews', name: 'Hacker News', color: 'border-orange-600 dark:border-orange-600' },
             { id: 'nyt', name: 'The New York Times', color: 'border-stone-800 dark:border-stone-400' },
             { id: 'bbc', name: 'BBC Global News', color: 'border-red-700 dark:border-red-700' },
@@ -117,7 +117,6 @@
                         if(i < 15) items.push({ title: node.textContent.trim(), link: node.href });
                     });
                     break;
-                // 注意：游民星空和 3DM 完全保持原样，一字未动！
                 case 'gamersky': 
                     const mirrors = [
                         'https://rsshub.rssforever.com/gamersky/news',
@@ -125,17 +124,13 @@
                         'https://rsshub.ktachibana.party/gamersky/news',
                         'https://rsshub.noxussj.top/gamersky/news'
                     ];
-                    
                     for (let mirrorUrl of mirrors) {
                         try {
                             raw = await fetchViaBackend(mirrorUrl);
                             items = parseRSS(raw);
                             if (items.length > 0) break;
-                        } catch (e) {
-                            console.warn('镜像源被拦截，正在切换下一个:', mirrorUrl);
-                        }
+                        } catch (e) { console.warn('镜像源被拦截，正在切换下一个:', mirrorUrl); }
                     }
-                    
                     if (items.length === 0) throw new Error("所有游民星空镜像源均被拦截");
                     break;
                 case '3dm': 
@@ -145,57 +140,57 @@
                         'https://rsshub.ktachibana.party/3dmgame/news',
                         'https://rsshub.noxussj.top/3dmgame/news'
                     ];
-                    
                     for (let mirrorUrl3dm of mirrors3dm) {
                         try {
                             raw = await fetchViaBackend(mirrorUrl3dm);
                             items = parseRSS(raw);
                             if (items.length > 0) break;
-                        } catch (e) {
-                            console.warn('3DM镜像源被拦截，正在切换下一个:', mirrorUrl3dm);
-                        }
+                        } catch (e) { console.warn('3DM镜像源被拦截，正在切换下一个:', mirrorUrl3dm); }
                     }
-                    
                     if (items.length === 0) throw new Error("所有3DM镜像源均被拦截");
                     break;
 
-                // 【2. 仅仅新增了这一块：给游研社单独开后门的抓取逻辑】
+                // 【仅对游研社应用全新专属双保险抓取逻辑】
                 case 'yystv': 
                     const mirrorsYys = [
                         'https://rsshub.rssforever.com/yystv/docs',
                         'https://rss.shab.fun/yystv/docs',
                         'https://rsshub.ktachibana.party/yystv/docs',
-                        'https://rsshub.noxussj.top/yystv/docs'
+                        'https://rsshub.noxussj.top/yystv/docs',
+                        'https://rsshub.appss.eu.org/yystv/docs',
+                        'https://rsshub.liubing.me/yystv/docs'
                     ];
                     
+                    // 战术1：先用你自己的节点抓（和游民、3DM保持一致），大概率能成功
                     for (let url of mirrorsYys) {
                         try {
-                            // 第一招：直接让浏览器抓取，完全绕开你的 api.ta1zai.com 代理
-                            const res = await fetch(url, { cache: 'no-store' });
-                            if (res.ok) {
-                                raw = await res.text();
-                                items = parseRSS(raw);
-                                if (items.length > 0) break;
-                            }
+                            raw = await fetchViaBackend(url);
+                            items = parseRSS(raw);
+                            if (items.length > 0) break;
                         } catch (e) {
+                            console.warn('游研社CF代理节点受阻，切换中:', url);
+                        }
+                    }
+                    
+                    // 战术2：如果你自己的节点全部 530，启用超级 CORS 代理强穿透（规避浏览器限制）
+                    if (items.length === 0) {
+                        for (let url of mirrorsYys) {
                             try {
-                                // 第二招：如果直连不行，调用公共的 AllOrigins 代理，只为游研社服务
-                                const fallbackUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-                                const fallbackRes = await fetch(fallbackUrl, { cache: 'no-store' });
-                                if (fallbackRes.ok) {
-                                    raw = await fallbackRes.text();
+                                const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
+                                const res = await fetch(proxyUrl, { cache: 'no-store' });
+                                if (res.ok) {
+                                    raw = await res.text();
                                     items = parseRSS(raw);
                                     if (items.length > 0) break;
                                 }
                             } catch (err) {
-                                console.warn('游研社单线抓取失败:', url);
+                                console.warn('游研社超级代理受阻:', proxyUrl);
                             }
                         }
                     }
                     
-                    if (items.length === 0) throw new Error("游研社所有抓取手段均失效");
+                    if (items.length === 0) throw new Error("游研社所有抓取手段彻底失效");
                     break;
-                // 【新增结束】
 
                 case 'hackernews':
                     const hnRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json', { cache: 'no-store' });
@@ -252,9 +247,7 @@
                             link.innerText = '> ' + cleanTitle;
                         }
                     });
-                } catch (e) {
-                    console.error('Translate error', e);
-                }
+                } catch (e) { console.error('Translate error', e); }
             } else {
                 links.forEach(link => {
                     if (link.dataset.zh) link.innerText = '> ' + link.dataset.zh;
@@ -322,7 +315,7 @@
             } catch (err) {
                 console.error(`Error on ${platform.id}:`, err);
                 let errMsg = "Target Endpoint Blocked.";
-                if (err.message.includes("429") || err.message.includes("403")) errMsg = "Rate Limited or Blocked."; 
+                if (err.message.includes("429") || err.message.includes("403") || err.message.includes("530")) errMsg = "Rate Limited or Blocked."; 
                 wrapper.innerHTML = `<div class="h-[520px] p-6 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 game-border"><span class="text-red-500 font-bold text-sm uppercase italic tracking-widest font-smooth-rounded">[SYSTEM OFFLINE]</span><p class="text-sm text-slate-500 dark:text-slate-600 mt-2 font-mono">${errMsg}</p></div>`;
             }
         }
